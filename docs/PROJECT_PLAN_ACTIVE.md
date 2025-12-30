@@ -74,7 +74,8 @@
 ### PHASE 2: Bulk Mutations & Safe Write
 
 - [X] Done 12.30: Bulk Mutation Client (staged upload + safe tag merge + tests)
-- [ ] ToDo: Integration tests with real Shopify DEMO store (PHASE2_INTEGRATION_TEST_PLAN.md)
+- [X] Done 12.30: Integration test harness (verify_phase2_safe_writes.py)
+- [ ] ToDo: Execute integration tests against DEMO store (requires DEMO credentials)
 - [ ] ToDo: Error recovery patterns (partialDataUrl handling for FAILED mutations)
 
 **Spec Anchors:** Section 2.4.2, product update rules

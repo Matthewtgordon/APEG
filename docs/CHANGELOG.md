@@ -38,6 +38,8 @@
 - Technical Implementation Brief (Phase 1)
 - Shopify Admin GraphQL API documentation (bulk operations)
 
+---
+
 ## [2024-12-30] Phase 2: Bulk Mutations & Safe Tag Hydration
 
 ### Added
@@ -58,43 +60,32 @@
 - Technical Implementation Brief (Shopify Staged Upload documentation derivatives)
 - Shopify Admin GraphQL API: stagedUploadsCreate, bulkOperationRunMutation, productUpdate
 
-## [2024-12-30] Phase 1: Shopify Bulk Client Implementation
+---
+
+## [2024-12-30] Phase 2 Integration Test Harness
 
 ### Added
-- `src/apeg_core/schemas/bulk_ops.py`: BulkOperation Pydantic model with terminal state helpers
-- `src/apeg_core/shopify/exceptions.py`: Custom exception hierarchy for bulk operations
-- `src/apeg_core/shopify/bulk_client.py`: Async ShopifyBulkClient with Redis concurrency locks
-- `tests/unit/test_bulk_client_mock.py`: Mock-based unit tests for bulk client
+- `tests/integration/verify_phase2_safe_writes.py`: Real Shopify API integration tests
+- `tests/integration/README.md`: Integration test documentation
+- `.env.integration.example`: Template for integration test environment
 
 ### Features
-- Redis-based "1 concurrent job per shop" enforcement with lock TTL refresh
-- Defensive retry logic: Retry-After header support, exponential backoff with jitter
-- GraphQL operations: bulkOperationRunQuery (submit), node(id) polling (no deprecated currentBulkOperation)
-- Terminal state detection: COMPLETED (with url validation), FAILED/CANCELED/EXPIRED (with partial_data_url)
+- Three-tier safety gates: APEG_ENV=DEMO + store allowlist + explicit write flag
+- Safe tag merge validation: read-merge-write pattern verification
+- Staged upload dance validation: end-to-end workflow test
+- Cleanup guarantee: created test products MUST be deleted (even on failure)
+- Exit code semantics: 0=pass, 1=test fail, 2=safety gate fail
+
+### Test Scenarios
+- Scenario 1: Safe tag merge preserves original tags while adding new tags
+- Scenario 2: Staged upload dance completes without 403/400 errors
 
 ### Evidence Source
-- Technical Implementation Brief (Stage 2 Research Log derivatives)
-- Shopify Admin GraphQL API documentation (bulk operations)
-## [1.4.1] - 2024-12-30
+- Phase 2 Integration Test Harness Spec (contribution document)
+- PHASE2_INTEGRATION_TEST_PLAN.md (test plan reference)
 
-### Documentation Baseline Corrections
+---
 
-### Changed
-- SPEC-HDR-01: Bumped spec version to 1.4.1
-- SPEC-01-07: Verified Section 1.7 Shopify constraint language
-- SPEC-07-01: Corrected CustomerJourney semantics (attribution window)
-- DOCS-AT-TR-01: Added explicit evidence sources to acceptance tests
-- DOCS-CL-01: Moved Legacy App + CustomerJourney to Verified/Closed
-- DOCS-PP-FMT-01: Standardized all checklist formatting
-- DOCS-PP-SAFE-01: Added Safety Lock language for .env operations
-- DOCS-PP-02: Inserted Phase 0 Executable Start Plan
-
-### Evidence
-- All changes verified via grep commands in Step 1-8 verification blocks
-
-### Verified / Closed
-- Legacy custom app creation constraint (Stage 2 Research Log)
-- CustomerJourney 30-day attribution window semantics (Stage 2 Research Log)
 ## [1.4] - 2025-12-29
 
 ### Added
