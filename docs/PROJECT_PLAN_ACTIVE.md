@@ -71,13 +71,25 @@
 
 ## PHASE 2 — SHOPIFY MUSCLE LAYER (SAFE WRITES)
 
-### PHASE 2: Bulk Mutations & Safe Write (Fixing Schema)
+### PHASE 2: Bulk Mutations & Safe Write (BLOCKED - Schema Fix)
 
-- [X] Done 12.30: Bulk Mutation Client (staged upload + safe tag merge)
-- [ ] Fixing: Remove groupObjects from bulkOperationRunMutation (schema validation)
-- [ ] ToDo: Run Phase 2 integration test post-fix: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
-- [ ] ToDo: Integration tests with real Shopify DEMO store (blocked until schema fix verified)
+- [X] Done 12.30: Bulk Mutation Client (staged upload + safe tag merge + unit tests)
+- [ ] BLOCKING: Remove groupObjects
+  from bulkOperationRunMutation (schema validation error)
+- [ ] BLOCKING: Verify fix with integration test (must exit 0)
+- [ ] ToDo: Integration tests with real Shopify DEMO store (unblocked after schema fix)
 - [ ] ToDo: Error recovery patterns (partialDataUrl handling)
+
+**Schema Fix Verification:**
+```bash
+# Step 1: Verify code has no groupObjects
+rg -n "groupObjects|\$groupObjects|group_objects" src/apeg_core/ -S
+# Expected: 0 hits (or only explanatory comments)
+
+# Step 2: Run integration test
+PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py
+# Expected: Exit code 0, "All tests passed" message
+```
 
 **Spec Anchors:** Section 2.4.2, product update rules
 

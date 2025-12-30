@@ -2428,8 +2428,11 @@ async def start_bulk_operation(
         }
     """, variables={"stagedUploadPath": staged_url})
 
-**NOTE:** `groupObjects` is query-only and NOT accepted for `bulkOperationRunMutation`.
-Do not include it in mutation variables.
+**CRITICAL: groupObjects Parameter**
+
+`groupObjects` is **query-only** (for `bulkOperationRunQuery`).
+It is NOT accepted for `bulkOperationRunMutation` and will cause schema validation errors.
+Do NOT include it in mutation variables.
     
     # Check for immediate errors (Addition #3: Start Failure Handling)
     user_errors = bulk_op_response['data']['bulkOperationRunMutation']['userErrors']
@@ -3064,7 +3067,6 @@ class BulkOperationConfig:
 - **MIME Type:** Must be `text/jsonl` (not `application/jsonl`)
 - **File Size:** Hard cap 100MB per JSONL file
 - **Mutation Limitation:** Only ONE connection field allowed in mutation selection set
-- **groupObjects:** Query-only; do not include in bulkOperationRunMutation
 - **Result URLs:** Expire after 1 week - download and persist immediately
 - **Webhook Topic:** `bulk_operations/finish` (lowercase)
 - **Status Values:** Lowercase (`completed`, `failed`, `running`)

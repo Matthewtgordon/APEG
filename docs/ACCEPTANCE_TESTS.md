@@ -127,24 +127,42 @@
 **Evidence Source:** Code inspection (verify loop over parameters, then file field)
 **Status:** READY FOR TEST
 
-### TEST-P2-SCHEMA-FIX-01: groupObjects Removal
-**Requirement:** bulkOperationRunMutation MUST NOT include groupObjects parameter
+## Phase 2: Schema Fix Verification
+
+### TEST-P2-SCHEMA-COMPLETE-01: groupObjects Complete Removal
+**Requirement:** ZERO instances of groupObjects in Phase 2 mutation code
 **Test Method:**
-1. Code verification: `rg -n "groupObjects" src/apeg_core/shopify/ | grep -v "query-only"`
-2. Expect: 0 results (no groupObjects in mutation code)
-3. Run integration test: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
-4. Expect: Exit code 0 (all tests pass)
-**Evidence Source:** Code inspection + integration test output
+1. Comprehensive search: `rg -n "groupObjects|\$groupObjects|group_objects" src/apeg_core/ -S`
+2. Expected: 0 hits (or only explanatory comments marked as such)
+3. Verify GraphQL string: `grep -A 20 "MUTATION_BULK_OPERATION_RUN_MUTATION" src/apeg_core/shopify/graphql_strings.py`
+4. Confirm no `$groupObjects` variable declaration
+5. Confirm no `groupObjects:` argument in mutation call
+**Evidence Source:** Code inspection (ripgrep output)
 **Status:** TEST REQUIRED
 
-### TEST-P2-CONTENT-TYPE-01: JSONL Content-Type Consistency
-**Requirement:** All JSONL uploads MUST use Content-Type: text/jsonl
+### TEST-P2-INTEGRATION-GREEN-01: Phase 2 Integration Test Pass
+**Requirement:** Integration test must exit 0 after schema fix
 **Test Method:**
-1. Code verification: `rg -n "content_type.*jsonl" src/apeg_core/shopify/bulk_mutation_client.py`
-2. Doc verification: `rg -n "content_type.*jsonl" docs/integration-architecture-spec-v1.4.1.md`
-3. Expect: All instances show "text/jsonl" (not "application/jsonl")
-**Evidence Source:** Code + doc inspection
-**Status:** TEST REQUIRED
+1. Ensure DEMO store credentials configured in `.env`
+2. Ensure Redis running: `docker ps | grep redis`
+3. Run: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
+4. Expected output:
+   - "SCENARIO 1: Safe Tag Merge" - PASS
+   - "SCENARIO 2: Staged Upload Dance" - PASS
+   - "ALL INTEGRATION TESTS PASSED"
+   - Exit code: 0
+5. Expected NO output containing:
+   - "GraphQL root errors"
+   - "Field 'groupObjects'"
+   - "declared but not used"
+**Evidence Source:** Integration test stdout/stderr + exit code
+**Status:** BLOCKED (requires schema fix + DEMO credentials)
+
+**Pass Signal:**
+- Safe Write verification confirms original tags preserved
+- New tag successfully added
+- Staged upload dance completed without HTTP 403/400
+- No GraphQL schema validation errors
 
 ---
 
