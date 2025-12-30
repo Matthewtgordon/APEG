@@ -6,6 +6,28 @@
 
 ---
 
+## [2024-12-30] Phase 2 Integration Test Harness
+
+### Added
+- `tests/integration/verify_phase2_safe_writes.py`: Real Shopify API integration tests
+- `tests/integration/README.md`: Integration test documentation
+- `.env.integration.example`: Template for integration test environment
+
+### Features
+- Three-tier safety gates: APEG_ENV=DEMO + store allowlist + explicit write flag
+- Safe tag merge validation: read-merge-write pattern verification
+- Staged upload dance validation: end-to-end workflow test
+- Cleanup guarantee: created test products MUST be deleted (even on failure)
+- Exit code semantics: 0=pass, 1=test fail, 2=safety gate fail
+
+### Test Scenarios
+- Scenario 1: Safe tag merge preserves original tags while adding new tags
+- Scenario 2: Staged upload dance completes without 403/400 errors
+
+### Evidence Source
+- Phase 2 Integration Test Harness Spec (contribution document)
+- PHASE2_INTEGRATION_TEST_PLAN.md (test plan reference)
+
 ## [2024-12-30] Phase 2: Bulk Mutations & Safe Tag Hydration
 
 ### Added

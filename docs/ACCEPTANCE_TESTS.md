@@ -127,6 +127,55 @@
 
 ---
 
+## Phase 2 Integration Tests (Real API)
+
+### INT-TEST-PHASE2-01: Safety Gates Enforcement
+**Requirement:** Script MUST refuse to run without DEMO safety gates
+**Test Method:**
+1. Run without APEG_ENV=DEMO: `python tests/integration/verify_phase2_safe_writes.py`
+2. Verify exit code 2 (safety gate failure)
+3. Run with APEG_ALLOW_WRITES=NO
+4. Verify exit code 2
+5. Run with store not in allowlist
+6. Verify exit code 2
+**Evidence Source:** Exit code verification
+**Status:** READY FOR TEST
+
+### INT-TEST-PHASE2-02: Safe Tag Merge (Live API)
+**Requirement:** Original tags MUST be preserved when adding new tags
+**Test Method:**
+1. Configure `.env.integration` with DEMO credentials
+2. Set `TEST_PRODUCT_ID` to existing product with known tags
+3. Run: `python tests/integration/verify_phase2_safe_writes.py`
+4. Verify exit code 0
+5. Check logs: "PASS: Safe write preserved all original tags"
+6. Manually verify product in Shopify Admin: all original tags + new tag present
+**Evidence Source:** Script output + manual Shopify Admin verification
+**Status:** BLOCKED (requires DEMO store credentials)
+
+### INT-TEST-PHASE2-03: Staged Upload End-to-End
+**Requirement:** 4-step staged upload dance completes without HTTP errors
+**Test Method:**
+1. Run integration script (as above)
+2. Verify no 403/400 errors in logs
+3. Verify bulk operation reaches COMPLETED status
+4. Check logs: "PASS: Staged upload dance completed"
+**Evidence Source:** Script output (HTTP success codes)
+**Status:** BLOCKED (requires DEMO store credentials)
+
+### INT-TEST-PHASE2-04: Cleanup Guarantee
+**Requirement:** Created test products MUST be deleted (even on failure)
+**Test Method:**
+1. Run integration script WITHOUT TEST_PRODUCT_ID (forces product creation)
+2. Observe product creation log: "Created test product: gid://..."
+3. Artificially inject failure (modify script to raise after mutation)
+4. Verify cleanup log: "Deleted test product: gid://..."
+5. Manually verify product NOT in Shopify Admin
+**Evidence Source:** Script output + manual Shopify Admin verification
+**Status:** BLOCKED (requires DEMO store credentials)
+
+---
+
 ## PHASE 2 — Safe Writes
 
 | Test | Spec Section | Status | Evidence |
