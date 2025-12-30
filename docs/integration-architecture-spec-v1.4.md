@@ -1,7 +1,7 @@
 # Integration Architecture Specification
 ## EcomAgent + APEG + Advertising Agent
 
-**Version:** 1.4.1  
+Version: 1.4.1  
 **Date:** 2025-12-29  
 **Status:** PRODUCTION READY (Demo→Live)  
 **Author:** Matticulous + Claude  
@@ -251,14 +251,14 @@ The `etsyv3` Python library is licensed under GPL-3.0, which conflicts with APEG
 - Monitor [Shopify Developer Changelog](https://shopify.dev/changelog) for deprecations and breaking changes
 - Note: Quarterly release notes discontinued; Developer Changelog is now the authoritative source
 
+**Model Context Protocol (MCP) Clarification:**
+Shopify's MCP servers (Dev MCP, Storefront MCP) are designed for AI assistants and chatbots. They are **not required** for APEG's Admin API usage. APEG continues using private app credentials and the ShopifyAPI library as planned. MCP integration is an optional enhancement track, not a core requirement.
+
 **Shopify Custom App Creation (Post-2026-01-01):**
 
 Starting 2026-01-01: you cannot create new legacy custom apps from the Shopify admin.
 New apps must be created/managed in the Shopify Dev Dashboard.
 Existing legacy custom apps already created are not automatically removed by this policy.
-
-**Model Context Protocol (MCP) Clarification:**
-Shopify's MCP servers (Dev MCP, Storefront MCP) are designed for AI assistants and chatbots. They are **not required** for APEG's Admin API usage. APEG continues using private app credentials and the ShopifyAPI library as planned. MCP integration is an optional enhancement track, not a core requirement.
 
 ### 1.8 Environment & Configuration Boundary (Demo vs Live)
 
@@ -9553,14 +9553,14 @@ preferences:
 ```ini
 # EcomAgent/.env
 SHOPIFY_STORE=your-store-name
-SHOPIFY_API_TOKEN=shpat_xxxxx
+SHOPIFY_ADMIN_ACCESS_TOKEN=shpat_xxxxx
 OPENAI_API_KEY=sk-xxxxx
 ```
 
 ```ini
 # APEG/.env
 SHOPIFY_STORE=your-store-name
-SHOPIFY_API_TOKEN=shpat_xxxxx
+SHOPIFY_ADMIN_ACCESS_TOKEN=shpat_xxxxx
 OPENAI_API_KEY=sk-xxxxx
 META_ACCESS_TOKEN=EAAxxxxx
 META_AD_ACCOUNT_ID=act_123456789

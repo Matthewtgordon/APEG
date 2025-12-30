@@ -18,6 +18,30 @@
 
 ---
 
+## Phase 0: Documentation Baseline
+
+### TEST-DOCS-01: Spec Version Updated
+**Requirement:** Spec header must show Version 1.4.1
+**Test Method:** `grep "Version: 1.4.1" docs/integration-architecture-spec-v1.4.md`
+**Evidence Source:** Grep output
+**Status:** READY FOR TEST
+
+### TEST-DOCS-02: Env Var Standardization
+**Requirement:** All references use SHOPIFY_ADMIN_ACCESS_TOKEN (not SHOPIFY_API_TOKEN)
+**Test Method:** 
+1. `grep -c "SHOPIFY_ADMIN_ACCESS_TOKEN" docs/integration-architecture-spec-v1.4.md`
+2. `grep "SHOPIFY_API_TOKEN" docs/integration-architecture-spec-v1.4.md` (expect: empty)
+**Evidence Source:** Grep output
+**Status:** READY FOR TEST
+
+### TEST-DOCS-03: Safety Lock Language Present
+**Requirement:** PROJECT_PLAN_ACTIVE must use backup command pattern (no direct .env overwrite)
+**Test Method:** `grep -A 3 "cp .env .env.bak" docs/PROJECT_PLAN_ACTIVE.md`
+**Evidence Source:** Grep output
+**Status:** READY FOR TEST
+
+---
+
 ## PHASE 1 — Shopify Backbone (Stage 2 VERIFIED)
 
 | Test | Spec Section | Status | Evidence |
@@ -44,11 +68,10 @@
 **Status:** READY FOR TEST
 
 ### TEST-BULK-02: GraphQL Operations (Verbatim Strings)
-**Requirement:** Use exact GraphQL strings from spec (bulkOperationRunQuery, node(id) polling)
+**Requirement:** Use exact GraphQL strings from spec
 **Test Method:**
-1. Inspect `src/apeg_core/shopify/bulk_client.py` constants
-2. Verify MUTATION_BULK_RUN_QUERY matches spec
-3. Verify QUERY_BULK_OP_BY_ID uses node(id) pattern (not deprecated currentBulkOperation)
+1. `grep -n "bulkOperationRunQuery" src/apeg_core/shopify/bulk_client.py`
+2. `grep -n "node(id:" src/apeg_core/shopify/bulk_client.py`
 **Evidence Source:** Code inspection
 **Status:** READY FOR TEST
 

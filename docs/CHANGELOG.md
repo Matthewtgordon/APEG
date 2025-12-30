@@ -6,6 +6,38 @@
 
 ---
 
+## [2024-12-30] Phase 0 & 1: Documentation Baseline + Core Engine
+
+### Phase 0: Documentation Baseline Corrections
+**Changed:**
+- Spec version bumped to 1.4.1
+- Section 1.7: Added Shopify custom app creation constraint (post-2026-01-01)
+- Section 7: Corrected CustomerJourney semantics (30-day attribution window)
+- Standardized env var: `SHOPIFY_API_TOKEN` → `SHOPIFY_ADMIN_ACCESS_TOKEN` (canonical)
+- Applied Safety Lock language for `.env` operations (backup before overwrite)
+- Added Phase 0 Executable Start Plan checklist
+
+**Evidence Source:**
+- Stage 2 Research Log (Shopify policy updates)
+- Safety requirements documentation
+
+### Phase 1: Shopify Bulk Client Implementation
+**Added:**
+- `src/apeg_core/schemas/bulk_ops.py`: BulkOperation Pydantic model with terminal state helpers
+- `src/apeg_core/shopify/exceptions.py`: Custom exception hierarchy for bulk operations
+- `src/apeg_core/shopify/bulk_client.py`: Async ShopifyBulkClient with Redis concurrency locks
+- `tests/unit/test_bulk_client_mock.py`: Mock-based unit tests for bulk client
+
+**Features:**
+- Redis-based "1 concurrent job per shop" enforcement with lock TTL refresh
+- Defensive retry logic: Retry-After header support, exponential backoff with jitter
+- GraphQL operations: `bulkOperationRunQuery` (submit), `node(id)` polling (no deprecated currentBulkOperation)
+- Terminal state detection: COMPLETED (with url validation), FAILED/CANCELED/EXPIRED (with partial_data_url)
+
+**Evidence Source:**
+- Technical Implementation Brief (Phase 1)
+- Shopify Admin GraphQL API documentation (bulk operations)
+
 ## [2024-12-30] Phase 2: Bulk Mutations & Safe Tag Hydration
 
 ### Added
