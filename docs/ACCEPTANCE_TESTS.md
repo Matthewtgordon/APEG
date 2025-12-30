@@ -226,6 +226,78 @@
 
 ---
 
+## Phase 3: API Layer (n8n Integration) - REVISED
+
+### TEST-API-01: API Key Authentication (401 Enforcement)
+**Requirement:** Endpoint MUST return 401 (not 422) for missing/invalid API key
+**Test Method:**
+1. Run unit test: `pytest tests/unit/test_api_auth.py::test_require_api_key_invalid -v`
+2. Verify HTTPException 401 raised with WWW-Authenticate header
+3. Run integration: `curl -X POST http://localhost:8000/api/v1/jobs/seo-update` (no header)
+4. Verify 401 response (not 422)
+5. Run integration: `curl -X POST http://localhost:8000/api/v1/jobs/seo-update -H "X-APEG-API-KEY: wrong"`
+6. Verify 401 response with "Invalid API key" detail
+**Evidence Source:** Unit test + curl verification
+**Status:** READY FOR TEST
+
+### TEST-API-02: Shop Domain Validation
+**Requirement:** Endpoint MUST reject mismatched shop_domain
+**Test Method:**
+1. Run unit test: `pytest tests/unit/test_api_routes.py::test_seo_update_job_shop_domain_mismatch -v`
+2. Verify 400 response with "shop_domain mismatch" detail
+**Evidence Source:** Unit test execution log
+**Status:** READY FOR TEST
+
+### TEST-API-03: Immediate 202 Response
+**Requirement:** Endpoint MUST return 202 Accepted immediately (never wait for Shopify)
+**Test Method:**
+1. Start server: `PYTHONPATH=. uvicorn src.apeg_core.main:app --reload`
+2. Submit job via curl (see docs/API_USAGE.md)
+3. Measure response time (should be <100ms)
+4. Verify response contains: job_id, status="queued", run_id, received_count
+**Evidence Source:** curl timing + response body
+**Status:** READY FOR TEST
+
+### TEST-API-04: Background Task Execution
+**Requirement:** Background task MUST execute safe-write pipeline asynchronously
+**Test Method:**
+1. Configure .env with DEMO credentials
+2. Submit job with dry_run=true
+3. Check server logs: verify "DRY RUN MODE" message
+4. Submit job with dry_run=false (single product)
+5. Check server logs: verify bulk operation submission + polling + completion
+**Evidence Source:** Server logs (stdout/stderr)
+**Status:** BLOCKED (requires DEMO store credentials + Phase 2 method verification)
+
+### TEST-API-05: Exception Safety
+**Requirement:** Background task failures MUST be logged without crashing server
+**Test Method:**
+1. Submit job with invalid product_id (e.g., "gid://shopify/Product/99999999999")
+2. Verify server continues running (no process exit)
+3. Check logs for exception traceback with job_id
+**Evidence Source:** Server logs + process status
+**Status:** BLOCKED (requires DEMO store credentials)
+
+### TEST-API-06: aiohttp Timeout Configuration
+**Requirement:** aiohttp session MUST have connect and total timeouts configured
+**Test Method:**
+1. Code inspection: grep "ClientTimeout" src/apeg_core/api/routes.py
+2. Verify timeout(total=300, connect=30) in _run_seo_update_job
+**Evidence Source:** Code inspection
+**Status:** READY FOR TEST
+
+### TEST-API-07: PYTHONPATH Execution
+**Requirement:** Server MUST start without import errors using documented command
+**Test Method:**
+1. Run: `PYTHONPATH=. uvicorn src.apeg_core.main:app --reload`
+2. Verify no ModuleNotFoundError
+3. Access http://localhost:8000/docs
+4. Verify interactive documentation loads
+**Evidence Source:** Server startup logs + browser verification
+**Status:** READY FOR TEST
+
+---
+
 ## PHASE 3 — n8n Orchestration
 
 | Test | Spec Section | Status | Evidence |

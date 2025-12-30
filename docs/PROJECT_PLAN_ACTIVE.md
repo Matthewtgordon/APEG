@@ -95,11 +95,17 @@
 
 **Spec Anchors:** Section 8.13, workflow triggers
 
-| Deliverable | Status | Spec Section |
-|-------------|--------|--------------|
-| Webhook contract (trigger endpoints) | [ ] ToDo: | 8.13 |
-| Credential-ID swap checklist | [ ] ToDo: | 8.13 |
-| Execution log verification | [ ] ToDo: | 8.13 |
+### PHASE 3: n8n Orchestration Bindings
+
+- [X] Done 12.30: FastAPI endpoint (POST /api/v1/jobs/seo-update)
+- [X] Done 12.30: API key authentication (X-APEG-API-KEY → 401 on invalid)
+- [X] Done 12.30: Background task dispatch (FastAPI BackgroundTasks)
+- [X] Done 12.30: Safe-write pipeline integration (Phase 2 client)
+- [X] Done 12.30: aiohttp timeout configuration (30s connect, 300s total)
+- [X] Done 12.30: PYTHONPATH execution documentation
+- [ ] ToDo: Verify Phase 2 client method names alignment
+- [ ] ToDo: n8n workflow configuration (HTTP Request node + credential setup)
+- [ ] ToDo: Job status callback endpoint (optional: webhook for completion)
 
 **Acceptance Tests:**
 - [ ] ToDo: Workflow run in DEMO produces correct outputs
