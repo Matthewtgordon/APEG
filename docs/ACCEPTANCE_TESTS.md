@@ -127,6 +127,25 @@
 **Evidence Source:** Code inspection (verify loop over parameters, then file field)
 **Status:** READY FOR TEST
 
+### TEST-P2-SCHEMA-FIX-01: groupObjects Removal
+**Requirement:** bulkOperationRunMutation MUST NOT include groupObjects parameter
+**Test Method:**
+1. Code verification: `rg -n "groupObjects" src/apeg_core/shopify/ | grep -v "query-only"`
+2. Expect: 0 results (no groupObjects in mutation code)
+3. Run integration test: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
+4. Expect: Exit code 0 (all tests pass)
+**Evidence Source:** Code inspection + integration test output
+**Status:** TEST REQUIRED
+
+### TEST-P2-CONTENT-TYPE-01: JSONL Content-Type Consistency
+**Requirement:** All JSONL uploads MUST use Content-Type: text/jsonl
+**Test Method:**
+1. Code verification: `rg -n "content_type.*jsonl" src/apeg_core/shopify/bulk_mutation_client.py`
+2. Doc verification: `rg -n "content_type.*jsonl" docs/integration-architecture-spec-v1.4.1.md`
+3. Expect: All instances show "text/jsonl" (not "application/jsonl")
+**Evidence Source:** Code + doc inspection
+**Status:** TEST REQUIRED
+
 ---
 
 ## Phase 2 Integration Tests (Real API)

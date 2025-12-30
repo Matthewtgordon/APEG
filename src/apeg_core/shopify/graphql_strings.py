@@ -49,13 +49,11 @@ MUTATION_BULK_OPERATION_RUN_MUTATION = """
 mutation BulkOperationRunMutation(
   $mutation: String!,
   $stagedUploadPath: String!,
-  $groupObjects: Boolean!,
   $clientIdentifier: String
 ) {
   bulkOperationRunMutation(
     mutation: $mutation,
     stagedUploadPath: $stagedUploadPath,
-    groupObjects: $groupObjects,
     clientIdentifier: $clientIdentifier
   ) {
     bulkOperation { id status url }
