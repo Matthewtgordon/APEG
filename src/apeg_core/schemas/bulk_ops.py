@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field
 class BulkOperation(BaseModel):
     """Shopify BulkOperation response model."""
 
-    id: str = Field(..., description="GID of bulk operation (e.g., gid://shopify/BulkOperation/123)")
+    id: str = Field(
+        ..., description="GID of bulk operation (e.g., gid://shopify/BulkOperation/123)"
+    )
     status: str = Field(
         ...,
         description="CREATED|RUNNING|COMPLETED|FAILED|CANCELING|CANCELED|EXPIRED",
@@ -17,7 +19,9 @@ class BulkOperation(BaseModel):
     )
     object_count: Optional[int] = Field(None, description="Number of objects processed")
     error_code: Optional[str] = Field(None, description="Error code if FAILED")
-    partial_data_url: Optional[str] = Field(None, description="Partial JSONL URL if job failed mid-run")
+    partial_data_url: Optional[str] = Field(
+        None, description="Partial JSONL URL if job failed mid-run"
+    )
 
     @property
     def is_terminal(self) -> bool:
@@ -44,35 +48,38 @@ class StagedTarget(BaseModel):
     resource_url: Optional[str] = Field(None, description="Resource URL after upload")
     parameters: list[StagedUploadParameter] = Field(default_factory=list)
 
-    def get_parameter_value(self, name: str) -> Optional[str]:
-        """Extract parameter value by name."""
-        for param in self.parameters:
-            if param.name == name:
-                return param.value
-        return None
-
     @property
     def staged_upload_path(self) -> str:
         """Extract the 'key' parameter for stagedUploadPath."""
-        key = self.get_parameter_value("key")
-        if not key:
-            raise ValueError("Missing 'key' parameter in stagedTarget")
-        return key
+        for param in self.parameters:
+            if param.name == "key":
+                return param.value
+        raise ValueError("Missing 'key' parameter in stagedTarget")
 
 
-class ProductSEOInput(BaseModel):
+class ProductSEO(BaseModel):
     """SEO fields for product update."""
 
     title: Optional[str] = None
     description: Optional[str] = None
 
 
+class ProductUpdateSpec(BaseModel):
+    """Product update specification (input to safe-write merger)."""
+
+    product_id: str = Field(..., description="Product GID")
+    tags_add: list[str] = Field(default_factory=list, description="Tags to add")
+    tags_remove: list[str] = Field(default_factory=list, description="Tags to remove")
+    tags_full: Optional[list[str]] = Field(None, description="Override mode (discouraged)")
+    seo: Optional[ProductSEO] = Field(None, description="SEO fields")
+
+
 class ProductUpdateInput(BaseModel):
     """Product update payload for bulk mutation JSONL."""
 
-    id: str = Field(..., description="Product GID (e.g., gid://shopify/Product/123)")
+    id: str = Field(..., description="Product GID")
     tags: Optional[list[str]] = Field(None, description="Complete merged tag list")
-    seo: Optional[ProductSEOInput] = Field(None, description="SEO title/description")
+    seo: Optional[ProductSEO] = Field(None, description="SEO title/description")
 
     def to_jsonl_dict(self) -> dict:
         """Convert to JSONL line dict with 'product' key."""
@@ -84,10 +91,9 @@ class ProductUpdateInput(BaseModel):
         return {"product": payload}
 
 
-class ProductCurrentState(BaseModel):
-    """Current product state for safe-write merge."""
+class BulkOperationRef(BaseModel):
+    """Reference to submitted bulk operation."""
 
-    id: str
-    tags: list[str] = Field(default_factory=list)
-    seo_title: Optional[str] = None
-    seo_description: Optional[str] = None
+    bulk_op_id: str
+    run_id: str
+    shop_domain: str

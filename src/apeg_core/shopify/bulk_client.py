@@ -15,38 +15,7 @@ from .exceptions import (
     ShopifyBulkGraphQLError,
     ShopifyBulkJobLockedError,
 )
-
-
-# GraphQL Operations (VERBATIM from spec)
-MUTATION_BULK_RUN_QUERY = """
-mutation BulkRunQuery($query: String!) {
-  bulkOperationRunQuery(query: $query) {
-    bulkOperation {
-      id
-      status
-    }
-    userErrors {
-      field
-      message
-    }
-  }
-}
-"""
-
-QUERY_BULK_OP_BY_ID = """
-query BulkOpById($id: ID!) {
-  node(id: $id) {
-    ... on BulkOperation {
-      id
-      status
-      errorCode
-      objectCount
-      url
-      partialDataUrl
-    }
-  }
-}
-"""
+from .graphql_strings import MUTATION_BULK_RUN_QUERY, QUERY_BULK_OP_BY_ID
 
 MUTATION_BULK_CANCEL = """
 mutation BulkCancel($id: ID!) {
