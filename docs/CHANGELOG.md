@@ -6,6 +6,42 @@
 
 ---
 
+## [2024-12-30] Phase 3: n8n API Layer (REVISED)
+
+### Added
+- `src/apeg_core/api/auth.py`: API key authentication using FastAPI APIKeyHeader (401 on missing/invalid)
+- `src/apeg_core/api/routes.py`: POST /api/v1/jobs/seo-update with BackgroundTasks and aiohttp timeouts
+- `src/apeg_core/main.py`: FastAPI application factory (with SAFETY LOCK: create only if missing)
+- `tests/unit/test_api_auth.py`: Unit tests for 401 behavior on missing/invalid API key
+- `tests/unit/test_api_routes.py`: Unit tests for job submission (401/400/202 responses)
+- `docs/API_USAGE.md`: API documentation with PYTHONPATH command and BackgroundTasks limitation
+
+### Features
+- HTTP contract for n8n: immediate 202 response with background execution
+- API key authentication: X-APEG-API-KEY header validation (401 with WWW-Authenticate)
+- Shop domain validation: rejects cross-store write attempts (400)
+- Safe-write tag merging: (current ∪ tags_add) - tags_remove
+- Dry run mode: validate payload without executing Shopify writes
+- Exception-safe background tasks: failures logged, never crash server
+- aiohttp timeouts: 30s connect, 300s total
+- Request/response models: rigid Pydantic schemas for n8n
+- PYTHONPATH execution documentation: prevents import errors
+
+### Security
+- APIKeyHeader security dependency (FastAPI standard pattern)
+- 401 Unauthorized with WWW-Authenticate header for missing/invalid keys
+- Shop domain validation prevents cross-store operations
+
+### Limitations (Documented)
+- Background tasks are in-process and not persisted
+- Server restart will interrupt running jobs
+- No automatic retry or status callback (future enhancement)
+
+### Evidence Source
+- Phase 3 Technical Implementation Brief (Revised)
+- FastAPI BackgroundTasks documentation
+- FastAPI security documentation (APIKeyHeader)
+
 ## [2024-12-30] Phase 2 Closeout: Integration Verification PASS
 
 ### Verified
