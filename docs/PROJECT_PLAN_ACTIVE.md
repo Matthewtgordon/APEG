@@ -44,6 +44,12 @@
 
 ---
 
+### PHASE 1: Core Async Engine
+
+- [X] Done 12.30: Shopify Bulk Client (schemas + async client + Redis locks + tests)
+- [ ] ToDo: JSONL Parser (async streaming from Shopify bulk result URLs)
+- [ ] ToDo: Integration Tests (real Shopify API + Redis, gated by .env credentials)
+
 ## PHASE 2 — SHOPIFY MUSCLE LAYER (SAFE WRITES)
 
 **Spec Anchors:** Section 2.4.2, product update rules

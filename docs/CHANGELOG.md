@@ -2,9 +2,27 @@
 # Spec Fixes + Test Evidence Log
 
 **Source of Truth:** integration-architecture-spec-v1.4.md  
-**Last Updated:** 2025-12-29
+**Last Updated:** 2024-12-30
 
 ---
+
+## [2024-12-30] Phase 1: Shopify Bulk Client Implementation
+
+### Added
+- `src/apeg_core/schemas/bulk_ops.py`: BulkOperation Pydantic model with terminal state helpers
+- `src/apeg_core/shopify/exceptions.py`: Custom exception hierarchy for bulk operations
+- `src/apeg_core/shopify/bulk_client.py`: Async ShopifyBulkClient with Redis concurrency locks
+- `tests/unit/test_bulk_client_mock.py`: Mock-based unit tests for bulk client
+
+### Features
+- Redis-based "1 concurrent job per shop" enforcement with lock TTL refresh
+- Defensive retry logic: Retry-After header support, exponential backoff with jitter
+- GraphQL operations: bulkOperationRunQuery (submit), node(id) polling (no deprecated currentBulkOperation)
+- Terminal state detection: COMPLETED (with url validation), FAILED/CANCELED/EXPIRED (with partial_data_url)
+
+### Evidence Source
+- Technical Implementation Brief (Stage 2 Research Log derivatives)
+- Shopify Admin GraphQL API documentation (bulk operations)
 
 ## [1.4] - 2025-12-29
 

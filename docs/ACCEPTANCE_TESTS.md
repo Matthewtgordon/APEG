@@ -31,6 +31,43 @@
 
 ---
 
+## Phase 1: Shopify Bulk Client
+
+### TEST-BULK-01: Redis Lock Enforcement
+**Requirement:** Only 1 concurrent bulk job per shop
+**Test Method:** 
+1. Run mock test: `pytest tests/unit/test_bulk_client_mock.py::test_submit_job_lock_failure -v`
+2. Verify ShopifyBulkJobLockedError raised when lock unavailable
+**Evidence Source:** Unit test execution log
+**Status:** READY FOR TEST
+
+### TEST-BULK-02: GraphQL Operations (Verbatim Strings)
+**Requirement:** Use exact GraphQL strings from spec (bulkOperationRunQuery, node(id) polling)
+**Test Method:**
+1. Inspect `src/apeg_core/shopify/bulk_client.py` constants
+2. Verify MUTATION_BULK_RUN_QUERY matches spec
+3. Verify QUERY_BULK_OP_BY_ID uses node(id) pattern (not deprecated currentBulkOperation)
+**Evidence Source:** Code inspection
+**Status:** READY FOR TEST
+
+### TEST-BULK-03: Retry-After Header Handling
+**Requirement:** Respect Retry-After on HTTP 429
+**Test Method:**
+1. Run mock test: `pytest tests/unit/test_bulk_client_mock.py::test_http_429_with_retry_after -v`
+2. Verify client sleeps for Retry-After duration before retry
+**Evidence Source:** Unit test execution log
+**Status:** READY FOR TEST
+
+### TEST-BULK-04: Terminal State Validation
+**Requirement:** Raise error if COMPLETED but url missing
+**Test Method:**
+1. Run mock test: `pytest tests/unit/test_bulk_client_mock.py::test_poll_status_completed_missing_url -v`
+2. Verify ShopifyBulkApiError raised with "url missing" message
+**Evidence Source:** Unit test execution log
+**Status:** READY FOR TEST
+
+---
+
 ## PHASE 2 — Safe Writes
 
 | Test | Spec Section | Status | Evidence |
