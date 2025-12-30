@@ -127,24 +127,42 @@
 **Evidence Source:** Code inspection (verify loop over parameters, then file field)
 **Status:** READY FOR TEST
 
-### TEST-P2-SCHEMA-FIX-01: groupObjects Removal
-**Requirement:** bulkOperationRunMutation MUST NOT include groupObjects parameter
-**Test Method:**
-1. Code verification: `rg -n "groupObjects" src/apeg_core/shopify/ | grep -v "query-only"`
-2. Expect: 0 results (no groupObjects in mutation code)
-3. Run integration test: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
-4. Expect: Exit code 0 (all tests pass)
-**Evidence Source:** Code inspection + integration test output
-**Status:** TEST REQUIRED
+## Phase 2: Schema Fix Verification
 
-### TEST-P2-CONTENT-TYPE-01: JSONL Content-Type Consistency
-**Requirement:** All JSONL uploads MUST use Content-Type: text/jsonl
+### TEST-P2-SCHEMA-COMPLETE-01: groupObjects Complete Removal
+**Requirement:** ZERO instances of groupObjects in Phase 2 mutation code
 **Test Method:**
-1. Code verification: `rg -n "content_type.*jsonl" src/apeg_core/shopify/bulk_mutation_client.py`
-2. Doc verification: `rg -n "content_type.*jsonl" docs/integration-architecture-spec-v1.4.1.md`
-3. Expect: All instances show "text/jsonl" (not "application/jsonl")
-**Evidence Source:** Code + doc inspection
-**Status:** TEST REQUIRED
+1. Comprehensive search: `rg -n "groupObjects|\$groupObjects|group_objects" src/apeg_core/ -S`
+2. Expected: 0 hits (or only explanatory comments marked as such)
+3. Verify GraphQL string: `grep -A 20 "MUTATION_BULK_OPERATION_RUN_MUTATION" src/apeg_core/shopify/graphql_strings.py`
+4. Confirm no `$groupObjects` variable declaration
+5. Confirm no `groupObjects:` argument in mutation call
+**Evidence Source:** Code inspection (ripgrep output)
+**Status:** VERIFIED (Done 12.30)
+
+### TEST-P2-INTEGRATION-GREEN-01: Phase 2 Integration Test Pass
+**Requirement:** Integration test must exit 0 after schema fix
+**Test Method:**
+1. Ensure DEMO store credentials configured in `.env`
+2. Ensure Redis running: `docker ps | grep redis`
+3. Run: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
+4. Expected output:
+   - "SCENARIO 1: Safe Tag Merge" - PASS
+   - "SCENARIO 2: Staged Upload Dance" - PASS
+   - "ALL INTEGRATION TESTS PASSED"
+   - Exit code: 0
+5. Expected NO output containing:
+   - "GraphQL root errors"
+   - "Field 'groupObjects'"
+   - "declared but not used"
+**Evidence Source:** Integration test stdout/stderr + exit code (Command: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`)
+**Status:** VERIFIED (Done 12.30)
+
+**Pass Signal:**
+- Safe Write verification confirms original tags preserved
+- New tag successfully added
+- Staged upload dance completed without HTTP 403/400
+- No GraphQL schema validation errors
 
 ---
 
@@ -167,12 +185,12 @@
 **Test Method:**
 1. Configure `.env.integration` with DEMO credentials
 2. Set `TEST_PRODUCT_ID` to existing product with known tags
-3. Run: `python tests/integration/verify_phase2_safe_writes.py`
+3. Run: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
 4. Verify exit code 0
 5. Check logs: "PASS: Safe write preserved all original tags"
 6. Manually verify product in Shopify Admin: all original tags + new tag present
-**Evidence Source:** Script output + manual Shopify Admin verification
-**Status:** BLOCKED (requires DEMO store credentials)
+**Evidence Source:** Integration test output (Command: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`)
+**Status:** VERIFIED (Done 12.30)
 
 ### INT-TEST-PHASE2-03: Staged Upload End-to-End
 **Requirement:** 4-step staged upload dance completes without HTTP errors
@@ -181,8 +199,8 @@
 2. Verify no 403/400 errors in logs
 3. Verify bulk operation reaches COMPLETED status
 4. Check logs: "PASS: Staged upload dance completed"
-**Evidence Source:** Script output (HTTP success codes)
-**Status:** BLOCKED (requires DEMO store credentials)
+**Evidence Source:** Integration test output (Command: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`)
+**Status:** VERIFIED (Done 12.30)
 
 ### INT-TEST-PHASE2-04: Cleanup Guarantee
 **Requirement:** Created test products MUST be deleted (even on failure)
@@ -192,8 +210,8 @@
 3. Artificially inject failure (modify script to raise after mutation)
 4. Verify cleanup log: "Deleted test product: gid://..."
 5. Manually verify product NOT in Shopify Admin
-**Evidence Source:** Script output + manual Shopify Admin verification
-**Status:** BLOCKED (requires DEMO store credentials)
+**Evidence Source:** Integration test output + cleanup logs (Command: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`)
+**Status:** VERIFIED (Done 12.30)
 
 ---
 

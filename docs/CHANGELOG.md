@@ -6,10 +6,49 @@
 
 ---
 
+## [2024-12-30] Phase 2 Closeout: Integration Verification PASS
+
+### Verified
+- 12.30 Phase 2 integration verification PASS; safe write + staged upload dance + cleanup
+
+### Evidence
+- Command: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
+
+## [2024-12-30] Phase 2 Schema Fix: Complete groupObjects Removal
+
+### Fixed (CRITICAL)
+- **Schema Validation Error**: Removed ALL instances of `groupObjects`
+  from bulkOperationRunMutation
+- Removed `$groupObjects` variable declaration from GraphQL mutation string
+- Removed `groupObjects:` argument from mutation call
+- Removed `group_objects` parameter from Python method signature
+- Removed `"groupObjects"` from variables payload
+
+### Root Cause
+- `groupObjects` is query-only (accepted by `bulkOperationRunQuery`)
+- It is NOT accepted by `bulkOperationRunMutation` in current API schema
+- Error was: "Field 'groupObjects' doesn't exist on type 'BulkOperationRunMutationInput'"
+- Secondary error: "Variable $groupObjects is declared but not used"
+
+### Changed Files
+- `src/apeg_core/shopify/graphql_strings.py`: MUTATION_BULK_OPERATION_RUN_MUTATION (removed both declaration and argument)
+- `src/apeg_core/shopify/bulk_mutation_client.py`: _bulk_operation_run_mutation (removed parameter and payload entry)
+- `docs/integration-architecture-spec-v1.4.1.md`: Removed all mutation-context groupObjects references
+- `docs/PROJECT_PLAN_ACTIVE.md`: Marked Phase 2 as VERIFIED after integration test pass
+
+### Verification Steps
+1. Code sweep: `rg -n "groupObjects|$groupObjects|group_objects" src/apeg_core/` (expect: 0 hits)
+2. Integration test: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py` (expect: exit 0)
+
+### Status
+- Code fix: COMPLETE
+- Integration verification: PENDING (requires DEMO store + Redis)
+
 ## [2024-12-30] Phase 2 Schema Fix: Remove groupObjects
 
 ### Fixed
-- **CRITICAL**: Removed invalid `groupObjects` parameter from bulkOperationRunMutation
+- **CRITICAL**: Removed invalid `groupObjects` parameter
+  from bulkOperationRunMutation
 - Schema validation now passes (groupObjects is query-only, not accepted for mutations)
 - Aligned JSONL Content-Type to `text/jsonl` throughout code and documentation
 - Spec version consistency: all references now show 1.4.1
