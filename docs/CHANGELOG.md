@@ -2,9 +2,30 @@
 # Spec Fixes + Test Evidence Log
 
 **Source of Truth:** integration-architecture-spec-v1.4.md  
-**Last Updated:** 2025-12-29
+**Last Updated:** 2024-12-30
 
 ---
+
+## [1.4.1] - 2024-12-30
+
+### Documentation Baseline Corrections
+
+### Changed
+- SPEC-HDR-01: Bumped spec version to 1.4.1
+- SPEC-01-07: Verified Section 1.7 Shopify constraint language
+- SPEC-07-01: Corrected CustomerJourney semantics (attribution window)
+- DOCS-AT-TR-01: Added explicit evidence sources to acceptance tests
+- DOCS-CL-01: Moved Legacy App + CustomerJourney to Verified/Closed
+- DOCS-PP-FMT-01: Standardized all checklist formatting
+- DOCS-PP-SAFE-01: Added Safety Lock language for .env operations
+- DOCS-PP-02: Inserted Phase 0 Executable Start Plan
+
+### Evidence
+- All changes verified via grep commands in Step 1-8 verification blocks
+
+### Verified / Closed
+- Legacy custom app creation constraint (Stage 2 Research Log)
+- CustomerJourney 30-day attribution window semantics (Stage 2 Research Log)
 
 ## [1.4] - 2025-12-29
 
@@ -74,7 +95,6 @@
 
 | Item | Action Required |
 |------|-----------------|
-| customerJourney retention | Locate official doc (not blocking) |
 | OpenAPI expansion | Design work when APEG finalized |
 
 ---
