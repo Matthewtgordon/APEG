@@ -73,10 +73,12 @@
 
 ### PHASE 2: Bulk Mutations & Safe Write
 
-- [X] Done 12.30: Bulk Mutation Client (staged upload + safe tag merge + tests)
-- [X] Done 12.30: Integration test harness (verify_phase2_safe_writes.py)
-- [ ] ToDo: Execute integration tests against DEMO store (requires DEMO credentials)
-- [ ] ToDo: Error recovery patterns (partialDataUrl handling for FAILED mutations)
+- [X] Done 12.30: CRITICAL BUG FIX - Root ["errors"] handling in all GraphQL operations
+- [X] Done 12.30: GraphQL strings module (canonical query/mutation storage)
+- [X] Done 12.30: Bulk Mutation Client (staged upload + safe tag merge)
+- [X] Done 12.30: Unit tests (root errors regression + mutation client mocks)
+- [ ] ToDo: Integration tests with real Shopify DEMO store
+- [ ] ToDo: Error recovery patterns (partialDataUrl handling)
 
 **Spec Anchors:** Section 2.4.2, product update rules
 
