@@ -21,11 +21,15 @@ class ShopifyBulkApiError(ShopifyBulkClientError):
 
 
 class ShopifyBulkGraphQLError(ShopifyBulkClientError):
-    """Raised when GraphQL returns userErrors."""
+    """Raised when GraphQL returns userErrors or root-level errors."""
 
-    def __init__(self, user_errors: list):
+    def __init__(self, user_errors: object):
         self.user_errors = user_errors
-        super().__init__(f"GraphQL userErrors: {user_errors}")
+        if isinstance(user_errors, str):
+            message = user_errors
+        else:
+            message = f"GraphQL userErrors: {user_errors}"
+        super().__init__(message)
 
 
 class ShopifyBulkMutationLockedError(ShopifyBulkClientError):

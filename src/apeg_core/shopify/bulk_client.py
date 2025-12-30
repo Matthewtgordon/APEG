@@ -338,7 +338,18 @@ class ShopifyBulkClient:
 
                     # Success: parse JSON
                     resp.raise_for_status()
-                    return await resp.json()
+                    json_data = await resp.json()
+
+                    # CRITICAL BUG FIX: Check root-level errors BEFORE accessing data
+                    if "errors" in json_data and json_data["errors"]:
+                        error_messages = [
+                            e.get("message", str(e)) for e in json_data["errors"]
+                        ]
+                        raise ShopifyBulkGraphQLError(
+                            f"GraphQL root errors: {'; '.join(error_messages)}"
+                        )
+
+                    return json_data
 
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 if not retry or attempt > self.MAX_RETRY_ATTEMPTS:
