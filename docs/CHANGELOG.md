@@ -6,6 +6,28 @@
 
 ---
 
+## [2024-12-30] Phase 2 Schema Fix: Remove groupObjects
+
+### Fixed
+- **CRITICAL**: Removed invalid `groupObjects` parameter from bulkOperationRunMutation
+- Schema validation now passes (groupObjects is query-only, not accepted for mutations)
+- Aligned JSONL Content-Type to `text/jsonl` throughout code and documentation
+- Spec version consistency: all references now show 1.4.1
+
+### Changed
+- `src/apeg_core/shopify/graphql_strings.py`: MUTATION_BULK_OPERATION_RUN_MUTATION (removed groupObjects)
+- `src/apeg_core/shopify/bulk_mutation_client.py`: _bulk_operation_run_mutation signature (removed group_objects param)
+- `docs/integration-architecture-spec-v1.4.1.md`: Removed groupObjects from mutation examples
+- `docs/integration-architecture-spec-v1.4.1.md`: Fixed Content-Type examples (application/jsonl → text/jsonl)
+
+### Evidence Source
+- Live API schema validation error (groupObjects not accepted)
+- Shopify Admin GraphQL schema documentation (bulkOperationRunMutation)
+
+### Verification
+- Integration test status: PENDING (run after patch)
+- Command: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
+
 ## [2024-12-30] Phase 2: Bulk Mutations + Safe Writes (CRITICAL BUG FIX)
 
 ### Critical Bug Fix
