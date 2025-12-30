@@ -4,3 +4,6 @@
 # Integration test artifacts
 tests/integration/*.log
 tests/integration/__pycache__/
+
+# Python cache
+__pycache__/

@@ -6,6 +6,62 @@
 
 ---
 
+## [2024-12-30] Phase 0 & 1: Documentation Baseline + Core Engine
+
+### Phase 0: Documentation Baseline Corrections
+**Changed:**
+- Spec version bumped to 1.4.1
+- Section 1.7: Added Shopify custom app creation constraint (post-2026-01-01)
+- Section 7: Corrected CustomerJourney semantics (30-day attribution window)
+- Standardized env var: `SHOPIFY_API_TOKEN` → `SHOPIFY_ADMIN_ACCESS_TOKEN` (canonical)
+- Applied Safety Lock language for `.env` operations (backup before overwrite)
+- Added Phase 0 Executable Start Plan checklist
+
+**Evidence Source:**
+- Stage 2 Research Log (Shopify policy updates)
+- Safety requirements documentation
+
+### Phase 1: Shopify Bulk Client Implementation
+**Added:**
+- `src/apeg_core/schemas/bulk_ops.py`: BulkOperation Pydantic model with terminal state helpers
+- `src/apeg_core/shopify/exceptions.py`: Custom exception hierarchy for bulk operations
+- `src/apeg_core/shopify/bulk_client.py`: Async ShopifyBulkClient with Redis concurrency locks
+- `tests/unit/test_bulk_client_mock.py`: Mock-based unit tests for bulk client
+
+**Features:**
+- Redis-based "1 concurrent job per shop" enforcement with lock TTL refresh
+- Defensive retry logic: Retry-After header support, exponential backoff with jitter
+- GraphQL operations: `bulkOperationRunQuery` (submit), `node(id)` polling (no deprecated currentBulkOperation)
+- Terminal state detection: COMPLETED (with url validation), FAILED/CANCELED/EXPIRED (with partial_data_url)
+
+**Evidence Source:**
+- Technical Implementation Brief (Phase 1)
+- Shopify Admin GraphQL API documentation (bulk operations)
+
+---
+
+## [2024-12-30] Phase 2: Bulk Mutations & Safe Tag Hydration
+
+### Added
+- `src/apeg_core/schemas/bulk_ops.py`: Extended with StagedTarget, ProductUpdateInput, ProductCurrentState models
+- `src/apeg_core/shopify/bulk_mutation_client.py`: ShopifyBulkMutationClient with staged upload workflow
+- `src/apeg_core/shopify/exceptions.py`: ShopifyBulkMutationLockedError, ShopifyStagedUploadError
+- `tests/unit/test_bulk_mutation_client_mock.py`: Mock-based unit tests for mutation client
+- `docs/PHASE2_INTEGRATION_TEST_PLAN.md`: Integration test plan for safe-write validation
+
+### Features
+- 4-step Staged Upload Dance: stagedUploadsCreate → multipart upload → bulkOperationRunMutation → poll
+- Safe tag hydration: fetch_current_product_state() + merge_product_updates() (union merge pattern)
+- Multipart form ordering enforcement: file field LAST (prevents 403 errors)
+- Redis mutation lock (1 concurrent mutation per shop, 1-hour TTL)
+- Reuses Phase 1 ShopifyBulkClient for polling and retry logic
+
+### Evidence Source
+- Technical Implementation Brief (Shopify Staged Upload documentation derivatives)
+- Shopify Admin GraphQL API: stagedUploadsCreate, bulkOperationRunMutation, productUpdate
+
+---
+
 ## [2024-12-30] Phase 2 Integration Test Harness
 
 ### Added
@@ -28,63 +84,8 @@
 - Phase 2 Integration Test Harness Spec (contribution document)
 - PHASE2_INTEGRATION_TEST_PLAN.md (test plan reference)
 
-## [2024-12-30] Phase 2: Bulk Mutations & Safe Tag Hydration
+---
 
-### Added
-- `src/apeg_core/schemas/bulk_ops.py`: Extended with StagedTarget, ProductUpdateInput, ProductCurrentState models
-- `src/apeg_core/shopify/bulk_mutation_client.py`: ShopifyBulkMutationClient with staged upload workflow
-- `src/apeg_core/shopify/exceptions.py`: ShopifyBulkMutationLockedError, ShopifyStagedUploadError
-- `tests/unit/test_bulk_mutation_client_mock.py`: Mock-based unit tests for mutation client
-- `docs/PHASE2_INTEGRATION_TEST_PLAN.md`: Integration test plan for safe-write validation
-
-### Features
-- 4-step Staged Upload Dance: stagedUploadsCreate → multipart upload → bulkOperationRunMutation → poll
-- Safe tag hydration: fetch_current_product_state() + merge_product_updates() (union merge pattern)
-- Multipart form ordering enforcement: file field LAST (prevents 403 errors)
-- Redis mutation lock (1 concurrent mutation per shop, 1-hour TTL)
-- Reuses Phase 1 ShopifyBulkClient for polling and retry logic
-
-### Evidence Source
-- Technical Implementation Brief (Shopify Staged Upload documentation derivatives)
-- Shopify Admin GraphQL API: stagedUploadsCreate, bulkOperationRunMutation, productUpdate
-
-## [2024-12-30] Phase 1: Shopify Bulk Client Implementation
-
-### Added
-- `src/apeg_core/schemas/bulk_ops.py`: BulkOperation Pydantic model with terminal state helpers
-- `src/apeg_core/shopify/exceptions.py`: Custom exception hierarchy for bulk operations
-- `src/apeg_core/shopify/bulk_client.py`: Async ShopifyBulkClient with Redis concurrency locks
-- `tests/unit/test_bulk_client_mock.py`: Mock-based unit tests for bulk client
-
-### Features
-- Redis-based "1 concurrent job per shop" enforcement with lock TTL refresh
-- Defensive retry logic: Retry-After header support, exponential backoff with jitter
-- GraphQL operations: bulkOperationRunQuery (submit), node(id) polling (no deprecated currentBulkOperation)
-- Terminal state detection: COMPLETED (with url validation), FAILED/CANCELED/EXPIRED (with partial_data_url)
-
-### Evidence Source
-- Technical Implementation Brief (Stage 2 Research Log derivatives)
-- Shopify Admin GraphQL API documentation (bulk operations)
-## [1.4.1] - 2024-12-30
-
-### Documentation Baseline Corrections
-
-### Changed
-- SPEC-HDR-01: Bumped spec version to 1.4.1
-- SPEC-01-07: Verified Section 1.7 Shopify constraint language
-- SPEC-07-01: Corrected CustomerJourney semantics (attribution window)
-- DOCS-AT-TR-01: Added explicit evidence sources to acceptance tests
-- DOCS-CL-01: Moved Legacy App + CustomerJourney to Verified/Closed
-- DOCS-PP-FMT-01: Standardized all checklist formatting
-- DOCS-PP-SAFE-01: Added Safety Lock language for .env operations
-- DOCS-PP-02: Inserted Phase 0 Executable Start Plan
-
-### Evidence
-- All changes verified via grep commands in Step 1-8 verification blocks
-
-### Verified / Closed
-- Legacy custom app creation constraint (Stage 2 Research Log)
-- CustomerJourney 30-day attribution window semantics (Stage 2 Research Log)
 ## [1.4] - 2025-12-29
 
 ### Added

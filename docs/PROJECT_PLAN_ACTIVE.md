@@ -11,7 +11,9 @@
 
 **Spec Anchors:** Section 1.8, Appendix F, Security section
 
-- [X] Done 12.30: Documentation baseline corrections (SPEC-HDR-01 through DOCS-PP-02)
+### PHASE 0: Documentation Baseline
+
+- [X] Done 12.30: Documentation baseline corrections (spec v1.4.1 + safety locks + env standardization)
 
 | Deliverable | Status | Spec Section |
 |-------------|--------|--------------|
@@ -28,9 +30,9 @@
 ## PHASE 0 — EXECUTABLE START PLAN
 
 - [ ] ToDo: Confirm Shopify app creation path (Dev Dashboard required for new apps after 2026-01-01; existing legacy custom apps unaffected).
-- [ ] ToDo: Update .env.example with any new required keys (no secrets).
-- [ ] ToDo: Create .env only if missing.
-- [ ] ToDo: If .env exists and must be changed, run backup first:
+- [ ] ToDo: Update `.env.example` with any new required keys (no secrets).
+- [ ] ToDo: Create `.env` only if missing.
+- [ ] ToDo: If `.env` exists and must be changed, run backup first:
 ```bash
       cp .env .env.bak.$(date +%Y%m%d-%H%M%S)
 ```
