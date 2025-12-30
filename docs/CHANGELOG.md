@@ -6,6 +6,32 @@
 
 ---
 
+## [2024-12-30] Phase 2: Bulk Mutations + Safe Writes (CRITICAL BUG FIX)
+
+### Critical Bug Fix
+- **GraphQL root error handling**: ALL GraphQL responses now check root ["errors"] BEFORE accessing ["data"]
+- Prevents `KeyError: 'data'` crashes when Shopify returns errors without data payload
+- Applied to Phase 1 `ShopifyBulkClient._post_graphql()` and all Phase 2 operations
+
+### Added
+- `src/apeg_core/shopify/graphql_strings.py`: Canonical GraphQL query/mutation strings
+- `src/apeg_core/shopify/bulk_mutation_client.py`: ShopifyBulkMutationClient with staged upload
+- `src/apeg_core/schemas/bulk_ops.py`: Extended with mutation models (ProductUpdateSpec, StagedTarget, BulkOperationRef)
+- `tests/unit/test_graphql_error_handling.py`: Regression test for root error handling
+- `tests/unit/test_bulk_mutation_client.py`: Mock tests for mutation client
+
+### Features
+- 4-step Staged Upload Dance: stagedUploadsCreate → multipart upload → bulkOperationRunMutation → poll
+- Safe tag hydration: fetch_current_tags() + merge (current ∪ tags_add) - tags_remove
+- Multipart form ordering enforcement: parameters first, file field LAST (prevents 403 errors)
+- Redis mutation lock (1 concurrent mutation per shop, 30min TTL)
+- Audit logging: run_id, bulk_op_id, update_count, status transitions
+
+### Evidence Source
+- Phase 2 Technical Specification (APEG FORMAT)
+- Shopify Admin GraphQL API: stagedUploadsCreate, bulkOperationRunMutation, productUpdate
+- Root error handling bug discovered in production testing
+
 ## [2024-12-30] Phase 0 & 1: Documentation Baseline + Core Engine
 
 ### Phase 0: Documentation Baseline Corrections

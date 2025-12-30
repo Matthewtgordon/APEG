@@ -9,9 +9,9 @@ from src.apeg_core.shopify.exceptions import (
     ShopifyStagedUploadError,
 )
 from src.apeg_core.schemas.bulk_ops import (
+    ProductSEO,
     ProductUpdateInput,
-    ProductSEOInput,
-    ProductCurrentState,
+    ProductUpdateSpec,
     StagedTarget,
     StagedUploadParameter,
 )
@@ -34,7 +34,7 @@ def mutation_client(mock_session, mock_redis):
     """Instantiate ShopifyBulkMutationClient with mocks."""
     return ShopifyBulkMutationClient(
         shop_domain="test-shop.myshopify.com",
-        admin_access_token="shpat_fake_token",
+        access_token="shpat_fake_token",
         api_version="2024-10",
         session=mock_session,
         redis=mock_redis,
@@ -44,27 +44,25 @@ def mutation_client(mock_session, mock_redis):
 @pytest.mark.asyncio
 async def test_staged_uploads_create_success(mutation_client):
     """Test stagedUploadsCreate returns StagedTarget."""
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json.return_value = {
-        "data": {
-            "stagedUploadsCreate": {
-                "stagedTargets": [
-                    {
-                        "url": "https://upload.shopify.com/...",
-                        "resourceUrl": None,
-                        "parameters": [
-                            {"name": "key", "value": "tmp/bulk_op_vars_123"},
-                            {"name": "acl", "value": "private"},
-                        ],
-                    }
-                ],
-                "userErrors": [],
+    mutation_client.bulk_client._post_graphql = AsyncMock(
+        return_value={
+            "data": {
+                "stagedUploadsCreate": {
+                    "stagedTargets": [
+                        {
+                            "url": "https://upload.shopify.com/...",
+                            "resourceUrl": None,
+                            "parameters": [
+                                {"name": "key", "value": "tmp/bulk_op_vars_123"},
+                                {"name": "acl", "value": "private"},
+                            ],
+                        }
+                    ],
+                    "userErrors": [],
+                }
             }
         }
-    }
-    mock_response.__aenter__.return_value = mock_response
-    mutation_client.session.post.return_value = mock_response
+    )
 
     result = await mutation_client._staged_uploads_create()
 
@@ -77,20 +75,18 @@ async def test_staged_uploads_create_success(mutation_client):
 @pytest.mark.asyncio
 async def test_staged_uploads_create_user_errors(mutation_client):
     """Test stagedUploadsCreate raises on userErrors."""
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json.return_value = {
-        "data": {
-            "stagedUploadsCreate": {
-                "stagedTargets": [],
-                "userErrors": [
-                    {"field": "resource", "message": "Invalid resource type"}
-                ],
+    mutation_client.bulk_client._post_graphql = AsyncMock(
+        return_value={
+            "data": {
+                "stagedUploadsCreate": {
+                    "stagedTargets": [],
+                    "userErrors": [
+                        {"field": "resource", "message": "Invalid resource type"}
+                    ],
+                }
             }
         }
-    }
-    mock_response.__aenter__.return_value = mock_response
-    mutation_client.session.post.return_value = mock_response
+    )
 
     with pytest.raises(ShopifyBulkGraphQLError) as exc_info:
         await mutation_client._staged_uploads_create()
@@ -125,14 +121,10 @@ async def test_upload_jsonl_multipart_ordering(mutation_client):
         "/fake/path.jsonl",
     )
 
-    # Verify POST was called
     assert mutation_client.session.post.called
     call_args = mutation_client.session.post.call_args
 
-    # Verify URL
     assert call_args[0][0] == "https://upload.test.com/"
-
-    # Verify FormData was passed
     assert "data" in call_args[1]
 
 
@@ -167,29 +159,23 @@ async def test_upload_jsonl_http_error(mutation_client):
 
 @pytest.mark.asyncio
 async def test_merge_product_updates_safe_write(mutation_client):
-    """Test merge_product_updates performs safe tag union."""
-    current_state_map = {
-        "gid://shopify/Product/123": ProductCurrentState(
-            id="gid://shopify/Product/123",
-            tags=["existing-tag-1", "existing-tag-2"],
-            seo_title="Original Title",
-            seo_description="Original Desc",
-        ),
+    """Test merge_product_updates performs safe tag union/removal."""
+    current_tags_map = {
+        "gid://shopify/Product/123": ["existing-tag-1", "existing-tag-2"],
     }
 
     desired_updates = [
-        ProductUpdateInput(
-            id="gid://shopify/Product/123",
-            tags=["new-tag-1"],
-            seo=ProductSEOInput(title="New Title"),
+        ProductUpdateSpec(
+            product_id="gid://shopify/Product/123",
+            tags_add=["new-tag-1"],
+            tags_remove=["existing-tag-1"],
         ),
     ]
 
-    merged = mutation_client.merge_product_updates(current_state_map, desired_updates)
+    merged = mutation_client._merge_product_updates(desired_updates, current_tags_map)
 
     assert len(merged) == 1
-    assert set(merged[0].tags) == {"existing-tag-1", "existing-tag-2", "new-tag-1"}
-    assert merged[0].seo.title == "New Title"
+    assert set(merged[0].tags) == {"existing-tag-2", "new-tag-1"}
 
 
 @pytest.mark.asyncio
@@ -198,7 +184,7 @@ async def test_product_update_input_to_jsonl_dict():
     update = ProductUpdateInput(
         id="gid://shopify/Product/456",
         tags=["tag1", "tag2"],
-        seo=ProductSEOInput(title="Test Title", description="Test Desc"),
+        seo=ProductSEO(title="Test Title", description="Test Desc"),
     )
 
     jsonl_dict = update.to_jsonl_dict()
@@ -218,8 +204,11 @@ async def test_run_product_update_bulk_lock_failure(mutation_client):
     mock_lock = AsyncMock()
     mock_lock.acquire.return_value = False
 
-    with patch("src.apeg_core.shopify.bulk_mutation_client.AsyncRedisLock", return_value=mock_lock):
+    with patch(
+        "src.apeg_core.shopify.bulk_mutation_client.AsyncRedisLock",
+        return_value=mock_lock,
+    ):
         with pytest.raises(ShopifyBulkMutationLockedError) as exc_info:
-            await mutation_client.run_product_update_bulk([])
+            await mutation_client.run_product_update_bulk("test-run", [])
 
         assert "test-shop.myshopify.com" in str(exc_info.value)

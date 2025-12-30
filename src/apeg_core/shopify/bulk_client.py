@@ -15,38 +15,7 @@ from .exceptions import (
     ShopifyBulkGraphQLError,
     ShopifyBulkJobLockedError,
 )
-
-
-# GraphQL Operations (VERBATIM from spec)
-MUTATION_BULK_RUN_QUERY = """
-mutation BulkRunQuery($query: String!) {
-  bulkOperationRunQuery(query: $query) {
-    bulkOperation {
-      id
-      status
-    }
-    userErrors {
-      field
-      message
-    }
-  }
-}
-"""
-
-QUERY_BULK_OP_BY_ID = """
-query BulkOpById($id: ID!) {
-  node(id: $id) {
-    ... on BulkOperation {
-      id
-      status
-      errorCode
-      objectCount
-      url
-      partialDataUrl
-    }
-  }
-}
-"""
+from .graphql_strings import MUTATION_BULK_RUN_QUERY, QUERY_BULK_OP_BY_ID
 
 MUTATION_BULK_CANCEL = """
 mutation BulkCancel($id: ID!) {
@@ -111,7 +80,7 @@ class ShopifyBulkClient:
         self.graphql_endpoint = (
             f"https://{shop_domain}/admin/api/{api_version}/graphql.json"
         )
-        self._lock_key = f"apeg:shopify:bulk_lock:{shop_domain}"
+        self._lock_key = f"apeg:shopify:bulk_query_lock:{shop_domain}"
         self._current_lock: Optional[AsyncRedisLock] = None
 
     async def submit_job(self, bulk_query: str) -> BulkOperation:
@@ -338,7 +307,18 @@ class ShopifyBulkClient:
 
                     # Success: parse JSON
                     resp.raise_for_status()
-                    return await resp.json()
+                    json_data = await resp.json()
+
+                    # CRITICAL BUG FIX: Check root-level errors BEFORE accessing data
+                    if "errors" in json_data and json_data["errors"]:
+                        error_messages = [
+                            e.get("message", str(e)) for e in json_data["errors"]
+                        ]
+                        raise ShopifyBulkGraphQLError(
+                            f"GraphQL root errors: {'; '.join(error_messages)}"
+                        )
+
+                    return json_data
 
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 if not retry or attempt > self.MAX_RETRY_ATTEMPTS:

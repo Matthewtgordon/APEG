@@ -14,8 +14,10 @@ from redis.asyncio.lock import Lock as AsyncRedisLock
 
 from ..schemas.bulk_ops import (
     BulkOperation,
-    ProductCurrentState,
+    BulkOperationRef,
+    ProductSEO,
     ProductUpdateInput,
+    ProductUpdateSpec,
     StagedTarget,
     StagedUploadParameter,
 )
@@ -26,340 +28,281 @@ from .exceptions import (
     ShopifyBulkMutationLockedError,
     ShopifyStagedUploadError,
 )
+from .graphql_strings import (
+    MUTATION_BULK_OPERATION_RUN_MUTATION,
+    MUTATION_PRODUCT_UPDATE,
+    MUTATION_STAGED_UPLOADS_CREATE,
+    QUERY_PRODUCTS_CURRENT_STATE,
+)
 
 
-# GraphQL Operations (VERBATIM from spec)
-MUTATION_STAGED_UPLOADS_CREATE = """
-mutation {
-  stagedUploadsCreate(input:[{
-    resource: BULK_MUTATION_VARIABLES,
-    filename: "bulk_op_vars",
-    mimeType: "text/jsonl",
-    httpMethod: POST
-  }]){
-    userErrors{ field, message },
-    stagedTargets{
-      url,
-      resourceUrl,
-      parameters { name, value }
-    }
-  }
-}
-"""
-
-MUTATION_BULK_OPERATION_RUN_MUTATION = """
-mutation bulkOperationRunMutation($mutation: String!, $stagedUploadPath: String!, $groupObjects: Boolean!, $clientIdentifier: String) {
-  bulkOperationRunMutation(
-    mutation: $mutation,
-    stagedUploadPath: $stagedUploadPath,
-    groupObjects: $groupObjects,
-    clientIdentifier: $clientIdentifier
-  ) {
-    bulkOperation { id url status }
-    userErrors { field message }
-  }
-}
-"""
-
-MUTATION_PRODUCT_UPDATE = """
-mutation call($product: ProductUpdateInput!) {
-  productUpdate(product: $product) {
-    product {
-      id
-      tags
-      seo { title description }
-    }
-    userErrors { field message }
-  }
-}
-"""
-
-QUERY_PRODUCTS_CURRENT_STATE = """
-{
-  products {
-    edges {
-      node {
-        id
-        tags
-        seo {
-          title
-          description
-        }
-      }
-    }
-  }
-}
-"""
+logger = logging.getLogger(__name__)
 
 
 class ShopifyBulkMutationClient:
-    """Async client for Shopify bulk mutations with safe tag hydration.
+    """Async client for Shopify bulk mutations with safe tag hydration."""
 
-    Implements the 4-step Staged Upload Dance:
-    1. Reserve staged upload target (stagedUploadsCreate)
-    2. Upload JSONL to staged URL (multipart/form-data)
-    3. Trigger bulk mutation (bulkOperationRunMutation)
-    4. Poll status via Phase 1 client
-    """
-
-    MUTATION_LOCK_TTL_SECONDS = 3600  # 1 hour for large mutations
+    MUTATION_LOCK_TTL_SECONDS = 1800  # 30 minutes
     FILE_CHUNK_SIZE_BYTES = 64 * 1024
 
     def __init__(
         self,
         shop_domain: str,
-        admin_access_token: str,
+        access_token: str,
         api_version: str,
         session: aiohttp.ClientSession,
         redis: Redis,
-        logger: Optional[logging.Logger] = None,
+        bulk_client: Optional[ShopifyBulkClient] = None,
+        lock_ttl_seconds: int = MUTATION_LOCK_TTL_SECONDS,
+        logger_instance: Optional[logging.Logger] = None,
     ):
         """Initialize Bulk Mutation Client.
 
         Args:
             shop_domain: e.g., "mystore.myshopify.com"
-            admin_access_token: Offline access token
+            access_token: Offline access token
             api_version: e.g., "2024-10"
             session: Injected aiohttp ClientSession
             redis: Injected redis.asyncio.Redis client
-            logger: Optional logger instance
+            bulk_client: Optional Phase 1 client (created if None)
+            lock_ttl_seconds: Redis lock TTL
+            logger_instance: Optional logger
         """
         self.shop_domain = shop_domain
-        self._access_token = admin_access_token
+        self._access_token = access_token
         self.api_version = api_version
         self.session = session
         self.redis = redis
-        self.logger = logger or logging.getLogger(__name__)
+        self.lock_ttl_seconds = lock_ttl_seconds
+        self.logger = logger_instance or logger
 
-        # Reuse Phase 1 client for polling
-        self.bulk_client = ShopifyBulkClient(
+        # Reuse or create Phase 1 client
+        self.bulk_client = bulk_client or ShopifyBulkClient(
             shop_domain=shop_domain,
-            admin_access_token=admin_access_token,
+            admin_access_token=access_token,
             api_version=api_version,
             session=session,
             redis=redis,
-            logger=logger,
+            logger=self.logger,
         )
 
-        self.graphql_endpoint = (
-            f"https://{shop_domain}/admin/api/{api_version}/graphql.json"
-        )
         self._mutation_lock_key = f"apeg:shopify:bulk_mutation_lock:{shop_domain}"
         self._current_lock: Optional[AsyncRedisLock] = None
 
     async def run_product_update_bulk(
         self,
-        product_updates: list[ProductUpdateInput],
-        client_identifier: str = "apeg-phase2-productUpdate",
-    ) -> str:
-        """Execute bulk product update with staged upload workflow.
+        run_id: str,
+        updates: list[ProductUpdateSpec],
+        dry_run: bool = False,
+    ) -> BulkOperationRef:
+        """Execute bulk product update with safe-write pipeline.
+
+        Pipeline:
+        1. Acquire Redis lock
+        2. Fetch current product state
+        3. Merge tags (safe-write)
+        4. Generate JSONL
+        5. Staged upload dance
+        6. Trigger bulk mutation
 
         Args:
-            product_updates: List of ProductUpdateInput with merged tags/seo
-            client_identifier: Optional identifier for tracking
+            run_id: Client identifier for idempotency
+            updates: Product update specifications
+            dry_run: If true, log actions without executing
 
         Returns:
-            Bulk operation ID (GID)
+            BulkOperationRef with bulk_op_id
 
         Raises:
-            ShopifyBulkMutationLockedError: If lock cannot be acquired
-            ShopifyBulkGraphQLError: On GraphQL userErrors
-            ShopifyStagedUploadError: On multipart upload failure
+            ShopifyBulkMutationLockedError: If lock unavailable
+            ShopifyBulkGraphQLError: On GraphQL errors
+            ShopifyStagedUploadError: On upload failure
         """
-        # Acquire mutation lock
+        if dry_run:
+            self.logger.info(f"DRY RUN: Would update {len(updates)} products")
+            return BulkOperationRef(
+                bulk_op_id="dry-run-no-op",
+                run_id=run_id,
+                shop_domain=self.shop_domain,
+            )
+
         lock = AsyncRedisLock(
             self.redis,
             name=self._mutation_lock_key,
-            timeout=self.MUTATION_LOCK_TTL_SECONDS,
+            timeout=self.lock_ttl_seconds,
             blocking=False,
         )
 
         acquired = await lock.acquire(blocking=False)
         if not acquired:
-            raise ShopifyBulkMutationLockedError(self.shop_domain, self._mutation_lock_key)
+            raise ShopifyBulkMutationLockedError(
+                self.shop_domain, self._mutation_lock_key
+            )
 
         self._current_lock = lock
-        self.logger.info(f"Acquired bulk mutation lock for shop={self.shop_domain}")
+        self.logger.info(f"Acquired mutation lock: run_id={run_id}")
 
-        jsonl_path = None
+        jsonl_path: Optional[str] = None
         try:
-            # Generate JSONL file
-            jsonl_path = await self._generate_product_update_jsonl(product_updates)
+            product_ids = [spec.product_id for spec in updates]
+            current_tags_map = await self.fetch_current_tags(product_ids)
 
-            # Step 1: Reserve staged upload target
-            staged_target = await self._staged_uploads_create()
+            merged_updates = self._merge_product_updates(updates, current_tags_map)
+            jsonl_path = await self._generate_mutation_jsonl(merged_updates)
 
-            # Step 2: Upload JSONL to staged target
-            await self._upload_jsonl_to_staged_target(staged_target, jsonl_path)
+            try:
+                staged_target = await self._staged_uploads_create()
+                await self._upload_jsonl_to_staged_target(staged_target, jsonl_path)
 
-            # Step 3: Trigger bulk mutation
-            bulk_op = await self._bulk_operation_run_mutation(
-                mutation=MUTATION_PRODUCT_UPDATE,
-                staged_upload_path=staged_target.staged_upload_path,
-                group_objects=False,
-                client_identifier=client_identifier,
-            )
+                bulk_op = await self._bulk_operation_run_mutation(
+                    mutation=MUTATION_PRODUCT_UPDATE,
+                    staged_upload_path=staged_target.staged_upload_path,
+                    group_objects=False,
+                    client_identifier=f"apeg-phase2:{run_id}",
+                )
 
-            self.logger.info(
-                f"Submitted bulk mutation: id={bulk_op.id}, "
-                f"products_count={len(product_updates)}"
-            )
-            return bulk_op.id
+                self.logger.info(
+                    "Submitted bulk mutation: op_id=%s, run_id=%s, updates=%s",
+                    bulk_op.id,
+                    run_id,
+                    len(merged_updates),
+                )
+
+                return BulkOperationRef(
+                    bulk_op_id=bulk_op.id,
+                    run_id=run_id,
+                    shop_domain=self.shop_domain,
+                )
+            finally:
+                if jsonl_path:
+                    await self._remove_file_best_effort(jsonl_path)
 
         except Exception:
             await self._release_lock_best_effort()
             raise
-        finally:
-            if jsonl_path:
-                await self._remove_file_best_effort(jsonl_path)
 
-    async def poll_and_get_result(
+    async def poll_to_terminal(
         self,
-        operation_id: str,
-        poll_interval: float = 5.0,
-        timeout: float = 7200,  # 2 hours
+        bulk_op_id: str,
+        timeout_s: int = 3600,
     ) -> BulkOperation:
-        """Poll bulk mutation status until terminal state.
+        """Poll bulk operation until terminal state.
 
-        Uses Phase 1 ShopifyBulkClient.poll_status() internally.
-        Releases mutation lock when complete.
-
-        Args:
-            operation_id: Bulk operation GID
-            poll_interval: Seconds between polls
-            timeout: Maximum poll duration
-
-        Returns:
-            BulkOperation in terminal state
+        Uses Phase 1 client for polling. Releases lock when complete.
         """
         try:
-            result = await self.bulk_client.poll_status(
-                operation_id=operation_id,
-                poll_interval=poll_interval,
-                timeout=timeout,
+            return await self.bulk_client.poll_status(
+                operation_id=bulk_op_id,
+                poll_interval=5.0,
+                timeout=timeout_s,
             )
-            return result
         finally:
             await self._release_lock_best_effort()
 
-    async def fetch_current_product_state(
+    async def fetch_current_tags(
         self,
         product_ids: list[str],
-    ) -> dict[str, ProductCurrentState]:
-        """Fetch current tags and SEO for safe-write merge.
-
-        Uses Phase 1 bulk query to fetch current product state.
-
-        Args:
-            product_ids: List of product GIDs
-
-        Returns:
-            Map of {product_id: ProductCurrentState}
-        """
+    ) -> dict[str, list[str]]:
+        """Fetch current tags for safe-write merge (Phase 1 bulk query)."""
         if not product_ids:
             return {}
 
         target_ids = set(product_ids)
 
-        # Submit bulk query for products
-        bulk_query = QUERY_PRODUCTS_CURRENT_STATE
-        operation = await self.bulk_client.submit_job(bulk_query)
-
-        # Poll until complete
+        operation = await self.bulk_client.submit_job(QUERY_PRODUCTS_CURRENT_STATE)
         result = await self.bulk_client.poll_status(operation.id)
 
-        # Download and parse JSONL
-        current_state_map: dict[str, ProductCurrentState] = {}
+        tags_map: dict[str, list[str]] = {}
         async with self.session.get(result.url) as resp:
             resp.raise_for_status()
-
             async for raw_line in resp.content:
                 line = raw_line.decode("utf-8").strip()
                 if not line:
                     continue
+
                 node = json.loads(line)
-
-                # Extract product data
                 product_id = node.get("id")
-                if not product_id or product_id not in target_ids:
-                    continue
+                if product_id and product_id in target_ids:
+                    tags_map[product_id] = node.get("tags", [])
 
-                seo = node.get("seo") or {}
-                current_state_map[product_id] = ProductCurrentState(
-                    id=product_id,
-                    tags=node.get("tags", []),
-                    seo_title=seo.get("title"),
-                    seo_description=seo.get("description"),
-                )
+        return tags_map
 
-        return current_state_map
-
-    def merge_product_updates(
+    def _merge_product_updates(
         self,
-        current_state_map: dict[str, ProductCurrentState],
-        desired_updates: list[ProductUpdateInput],
+        updates: list[ProductUpdateSpec],
+        current_tags_map: dict[str, list[str]],
     ) -> list[ProductUpdateInput]:
-        """Merge current tags with desired updates (safe-write pattern).
+        """Merge current tags with desired updates (safe-write pattern)."""
+        merged: list[ProductUpdateInput] = []
 
-        Args:
-            current_state_map: Current product state from fetch_current_product_state
-            desired_updates: Desired updates (may have partial tags or new SEO)
+        for spec in updates:
+            current_tags = set(current_tags_map.get(spec.product_id, []))
 
-        Returns:
-            Merged ProductUpdateInput list with complete tag sets
-        """
-        merged = []
-
-        for update in desired_updates:
-            current = current_state_map.get(update.id)
-            if not current:
-                self.logger.warning(
-                    f"Product {update.id} not found in current state; using update as-is"
-                )
-                merged.append(update)
-                continue
-
-            # Merge tags: union of current + incoming
-            current_tags = set(current.tags)
-            incoming_tags = set(update.tags or [])
-            merged_tags = sorted(current_tags | incoming_tags)
-
-            # SEO: incoming wins if provided
-            merged_seo = update.seo
-            if not merged_seo and (current.seo_title or current.seo_description):
-                from ..schemas.bulk_ops import ProductSEOInput
-
-                merged_seo = ProductSEOInput(
-                    title=current.seo_title,
-                    description=current.seo_description,
-                )
+            if spec.tags_full is not None:
+                final_tags = sorted(set(spec.tags_full))
+            else:
+                add_tags = set(spec.tags_add)
+                remove_tags = set(spec.tags_remove)
+                final_tags = sorted((current_tags | add_tags) - remove_tags)
 
             merged.append(
                 ProductUpdateInput(
-                    id=update.id,
-                    tags=merged_tags,
-                    seo=merged_seo,
+                    id=spec.product_id,
+                    tags=final_tags,
+                    seo=spec.seo,
                 )
             )
 
         return merged
 
+    async def _generate_mutation_jsonl(
+        self,
+        updates: list[ProductUpdateInput],
+    ) -> str:
+        """Generate JSONL file for bulk mutation variables."""
+        temp_dir = tempfile.gettempdir()
+        filename = f"apeg_bulk_mutation_{uuid.uuid4().hex}.jsonl"
+        temp_path = os.path.join(temp_dir, filename)
+
+        async with aiofiles.open(temp_path, mode="w", encoding="utf-8") as f:
+            for update in updates:
+                jsonl_line = json.dumps(update.to_jsonl_dict(), ensure_ascii=False)
+                await f.write(jsonl_line + "\n")
+
+        self.logger.debug(
+            "Generated JSONL: %s, lines=%s",
+            temp_path,
+            len(updates),
+        )
+        return temp_path
+
     async def _staged_uploads_create(self) -> StagedTarget:
-        """Step 1: Reserve staged upload target for bulk mutation variables."""
-        payload = {"query": MUTATION_STAGED_UPLOADS_CREATE}
+        """Step A: Reserve staged upload target."""
+        variables = {
+            "input": [
+                {
+                    "resource": "BULK_MUTATION_VARIABLES",
+                    "filename": "bulk_op_vars",
+                    "mimeType": "text/jsonl",
+                    "httpMethod": "POST",
+                }
+            ]
+        }
 
-        resp_data = await self._post_graphql(payload)
+        resp_data = await self.bulk_client._post_graphql(
+            {"query": MUTATION_STAGED_UPLOADS_CREATE, "variables": variables}
+        )
 
-        # Check userErrors
         mutation_result = resp_data["data"]["stagedUploadsCreate"]
         user_errors = mutation_result.get("userErrors", [])
         if user_errors:
-            raise ShopifyBulkGraphQLError(user_errors)
+            raise ShopifyBulkGraphQLError(
+                f"stagedUploadsCreate userErrors: {user_errors}"
+            )
 
-        # Extract stagedTarget
         staged_targets = mutation_result.get("stagedTargets", [])
         if not staged_targets:
-            raise ShopifyBulkApiError("No stagedTargets returned from stagedUploadsCreate")
+            raise ShopifyBulkApiError("No stagedTargets returned")
 
         target_data = staged_targets[0]
         return StagedTarget(
@@ -376,34 +319,26 @@ class ShopifyBulkMutationClient:
         staged_target: StagedTarget,
         jsonl_path: str,
     ) -> None:
-        """Step 2: Upload JSONL to staged URL via multipart/form-data.
-
-        CRITICAL: File field MUST be appended LAST in multipart form.
-        """
+        """Step B: Upload JSONL via multipart (CRITICAL: file field LAST)."""
         form = aiohttp.FormData()
 
-        # Add Shopify-provided parameters first, in order received
         for param in staged_target.parameters:
             form.add_field(param.name, param.value)
-            self.logger.debug(f"Added form field: {param.name}={param.value[:50]}...")
 
         file_iter = self._iter_file_chunks(jsonl_path)
         form.add_field(  # Add file field LAST (mandatory ordering)
             name="file",
             value=file_iter,
-            filename=os.path.basename(jsonl_path),
+            filename="bulk_op_vars.jsonl",
             content_type="text/jsonl",
         )
 
-        # Execute multipart POST
         async with self.session.post(staged_target.url, data=form) as resp:
             body = await resp.text()
             if resp.status not in (200, 201, 204):
                 raise ShopifyStagedUploadError(status=resp.status, body=body)
 
-            self.logger.info(
-                f"Uploaded JSONL to staged target: status={resp.status}"
-            )
+            self.logger.info("Uploaded JSONL: status=%s", resp.status)
 
     async def _bulk_operation_run_mutation(
         self,
@@ -412,26 +347,24 @@ class ShopifyBulkMutationClient:
         group_objects: bool,
         client_identifier: str,
     ) -> BulkOperation:
-        """Step 3: Trigger bulk mutation run."""
-        payload = {
-            "query": MUTATION_BULK_OPERATION_RUN_MUTATION,
-            "variables": {
-                "mutation": mutation,
-                "stagedUploadPath": staged_upload_path,
-                "groupObjects": group_objects,
-                "clientIdentifier": client_identifier,
-            },
+        """Step C: Trigger bulk mutation run."""
+        variables = {
+            "mutation": mutation,
+            "stagedUploadPath": staged_upload_path,
+            "clientIdentifier": client_identifier,
         }
 
-        resp_data = await self._post_graphql(payload)
+        resp_data = await self.bulk_client._post_graphql(
+            {"query": MUTATION_BULK_OPERATION_RUN_MUTATION, "variables": variables}
+        )
 
-        # Check userErrors
         mutation_result = resp_data["data"]["bulkOperationRunMutation"]
         user_errors = mutation_result.get("userErrors", [])
         if user_errors:
-            raise ShopifyBulkGraphQLError(user_errors)
+            raise ShopifyBulkGraphQLError(
+                f"bulkOperationRunMutation userErrors: {user_errors}"
+            )
 
-        # Extract bulkOperation
         op_data = mutation_result["bulkOperation"]
         return BulkOperation(
             id=op_data["id"],
@@ -440,32 +373,16 @@ class ShopifyBulkMutationClient:
             object_count=None,
         )
 
-    async def _post_graphql(self, payload: dict) -> dict:
-        """Execute GraphQL POST (reuses Phase 1 retry logic)."""
-        return await self.bulk_client._post_graphql(payload, retry=True)
-
-    async def _generate_product_update_jsonl(
-        self,
-        product_updates: list[ProductUpdateInput],
-    ) -> str:
-        """Generate JSONL file for bulk mutation variables.
-
-        Returns:
-            Path to temporary JSONL file
-        """
-        temp_dir = tempfile.gettempdir()
-        filename = f"apeg_bulk_mutation_{uuid.uuid4().hex}.jsonl"
-        temp_path = os.path.join(temp_dir, filename)
-
-        async with aiofiles.open(temp_path, mode="w", encoding="utf-8") as f:
-            for update in product_updates:
-                jsonl_line = json.dumps(update.to_jsonl_dict(), ensure_ascii=False)
-                await f.write(jsonl_line + "\n")
-
-        self.logger.debug(
-            f"Generated JSONL: {temp_path}, lines={len(product_updates)}"
-        )
-        return temp_path
+    async def _release_lock_best_effort(self) -> None:
+        """Release mutation lock with error suppression."""
+        if self._current_lock:
+            try:
+                await self._current_lock.release()
+                self.logger.info("Released mutation lock")
+            except Exception as e:
+                self.logger.error(f"Failed to release lock: {e}")
+            finally:
+                self._current_lock = None
 
     async def _remove_file_best_effort(self, path: str) -> None:
         """Remove temporary JSONL file with error suppression."""
@@ -475,19 +392,6 @@ class ShopifyBulkMutationClient:
             return
         except Exception as exc:
             self.logger.error(f"Failed to remove temp JSONL file: {exc}")
-
-    async def _release_lock_best_effort(self) -> None:
-        """Release mutation lock with error suppression."""
-        if self._current_lock:
-            try:
-                await self._current_lock.release()
-                self.logger.info(
-                    f"Released bulk mutation lock for shop={self.shop_domain}"
-                )
-            except Exception as e:
-                self.logger.error(f"Failed to release mutation lock: {e}")
-            finally:
-                self._current_lock = None
 
     async def _iter_file_chunks(self, path: str):
         """Yield file chunks asynchronously for multipart upload."""

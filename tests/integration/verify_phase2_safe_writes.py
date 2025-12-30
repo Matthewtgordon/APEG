@@ -22,7 +22,7 @@ import aiohttp
 from redis.asyncio import Redis
 
 from src.apeg_core.shopify.bulk_mutation_client import ShopifyBulkMutationClient
-from src.apeg_core.schemas.bulk_ops import BulkOperation, ProductUpdateInput
+from src.apeg_core.schemas.bulk_ops import ProductUpdateSpec
 
 
 # Configure logging
@@ -116,7 +116,15 @@ async def post_graphql(
 
     async with session.post(endpoint, json=payload, headers=headers) as resp:
         resp.raise_for_status()
-        return await resp.json()
+        json_data = await resp.json()
+
+        if "errors" in json_data and json_data["errors"]:
+            messages = [
+                error.get("message", str(error)) for error in json_data["errors"]
+            ]
+            raise RuntimeError(f"GraphQL root errors: {'; '.join(messages)}")
+
+        return json_data
 
 
 async def fetch_product_tags(
@@ -201,49 +209,43 @@ async def delete_test_product(
 
 async def main() -> None:
     """Execute Phase 2 integration tests."""
-    # Enforce safety gates
     safety_gates()
 
-    # Load environment
     shop_domain = require_env("SHOPIFY_STORE_DOMAIN")
     access_token = require_env("SHOPIFY_ADMIN_ACCESS_TOKEN")
     api_version = require_env("SHOPIFY_API_VERSION")
 
     graphql_endpoint = f"https://{shop_domain}/admin/api/{api_version}/graphql.json"
 
-    # Optional: Use existing test product
     test_product_id = os.getenv("TEST_PRODUCT_ID")
     created_product = False
-    product_id = None
+    product_id: Optional[str] = None
 
-    # Initialize clients
     async with aiohttp.ClientSession() as session:
-        # Redis setup (optional if client supports lock-free mode)
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         redis = Redis.from_url(redis_url, decode_responses=False)
 
         try:
             mutation_client = ShopifyBulkMutationClient(
                 shop_domain=shop_domain,
-                admin_access_token=access_token,
+                access_token=access_token,
                 api_version=api_version,
                 session=session,
                 redis=redis,
             )
 
-            # Setup: Get or create test product
-            if test_product_id:
-                product_id = test_product_id
-                logger.info(f"Using provided test product: {product_id}")
-            else:
-                timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-                title = f"APEG Safe Write Test {timestamp}"
-                product_id = await create_test_product(
-                    session, graphql_endpoint, access_token, title
-                )
-                created_product = True
-
             try:
+                if test_product_id:
+                    product_id = test_product_id
+                    logger.info(f"Using provided test product: {product_id}")
+                else:
+                    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+                    title = f"APEG Safe Write Test {timestamp}"
+                    product_id = await create_test_product(
+                        session, graphql_endpoint, access_token, title
+                    )
+                    created_product = True
+
                 # ------------------------------------------------------------
                 # SCENARIO 1: SAFE TAG MERGE (READ-MERGE-WRITE)
                 # ------------------------------------------------------------
@@ -251,14 +253,12 @@ async def main() -> None:
                 logger.info("SCENARIO 1: Safe Tag Merge (Preserve Original Tags)")
                 logger.info("=" * 60)
 
-                # Fetch initial state
                 initial = await fetch_product_tags(
                     session, graphql_endpoint, access_token, product_id
                 )
                 initial_tags = set(initial["tags"])
                 logger.info(f"Initial tags: {sorted(initial_tags)}")
 
-                # Generate unique new tag
                 prefix = os.getenv("TEST_TAG_PREFIX", "apeg_safe_write_test")
                 timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
                 new_tag = f"{prefix}_{timestamp}"
@@ -268,55 +268,50 @@ async def main() -> None:
 
                 logger.info(f"Adding new tag: {new_tag}")
 
-                # Merge tags (union)
-                merged_tags = sorted(initial_tags | {new_tag})
-
-                # Submit bulk mutation
-                product_update = ProductUpdateInput(
-                    id=product_id,
-                    tags=merged_tags,
+                update_spec = ProductUpdateSpec(
+                    product_id=product_id,
+                    tags_add=[new_tag],
+                    tags_remove=[],
                 )
 
-                bulk_op_id = await mutation_client.run_product_update_bulk(
-                    [product_update]
+                run_id = f"phase2-safe-write-{timestamp}"
+                bulk_ref = await mutation_client.run_product_update_bulk(
+                    run_id=run_id,
+                    updates=[update_spec],
                 )
-                logger.info(f"Submitted bulk operation: {bulk_op_id}")
+                logger.info(f"Submitted bulk operation: {bulk_ref.bulk_op_id}")
 
-                # Poll until complete
-                result = await mutation_client.poll_and_get_result(
-                    bulk_op_id,
-                    poll_interval=2.0,
-                    timeout=300,
+                result = await mutation_client.poll_to_terminal(
+                    bulk_ref.bulk_op_id,
+                    timeout_s=300,
                 )
 
                 if not result.is_success:
                     raise RuntimeError(
-                        f"Bulk operation did not complete successfully: "
+                        "Bulk operation did not complete successfully: "
                         f"status={result.status}, error={result.error_code}"
                     )
 
                 logger.info(
-                    f"PASS: Bulk operation completed ({result.object_count} objects)"
+                    "PASS: Bulk operation completed (%s objects)",
+                    result.object_count,
                 )
 
-                # Verify: Fetch product again
                 after = await fetch_product_tags(
                     session, graphql_endpoint, access_token, product_id
                 )
                 after_tags = set(after["tags"])
                 logger.info(f"Final tags: {sorted(after_tags)}")
 
-                # Assertion 1: New tag present
                 if new_tag not in after_tags:
                     raise AssertionError(
                         f"FAIL: New tag '{new_tag}' not found in product tags"
                     )
 
-                # Assertion 2: All original tags preserved
                 missing_tags = initial_tags - after_tags
                 if missing_tags:
                     raise AssertionError(
-                        f"FAIL: Safe write failed; missing original tags: "
+                        "FAIL: Safe write failed; missing original tags: "
                         f"{sorted(missing_tags)}"
                     )
 
@@ -342,7 +337,6 @@ async def main() -> None:
                 logger.info("=" * 60)
 
             finally:
-                # CLEANUP GUARANTEE: Delete created test product
                 if created_product and product_id:
                     try:
                         logger.info("Cleaning up test product...")
@@ -352,9 +346,11 @@ async def main() -> None:
                         logger.info("PASS: Cleanup successful")
                     except Exception as cleanup_error:
                         logger.error(
-                            f"CLEANUP FAILED for product {product_id}: {cleanup_error}"
+                            "CLEANUP FAILED; orphaned product_id=%s; error=%s",
+                            product_id,
+                            cleanup_error,
                         )
-                        sys.exit(1)
+                        raise SystemExit(1)
 
         finally:
             await redis.aclose()
