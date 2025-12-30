@@ -6,7 +6,26 @@
 
 ---
 
-feat/phase1-shopify-bulk-client
+## [2024-12-30] Phase 2: Bulk Mutations & Safe Tag Hydration
+
+### Added
+- `src/apeg_core/schemas/bulk_ops.py`: Extended with StagedTarget, ProductUpdateInput, ProductCurrentState models
+- `src/apeg_core/shopify/bulk_mutation_client.py`: ShopifyBulkMutationClient with staged upload workflow
+- `src/apeg_core/shopify/exceptions.py`: ShopifyBulkMutationLockedError, ShopifyStagedUploadError
+- `tests/unit/test_bulk_mutation_client_mock.py`: Mock-based unit tests for mutation client
+- `docs/PHASE2_INTEGRATION_TEST_PLAN.md`: Integration test plan for safe-write validation
+
+### Features
+- 4-step Staged Upload Dance: stagedUploadsCreate → multipart upload → bulkOperationRunMutation → poll
+- Safe tag hydration: fetch_current_product_state() + merge_product_updates() (union merge pattern)
+- Multipart form ordering enforcement: file field LAST (prevents 403 errors)
+- Redis mutation lock (1 concurrent mutation per shop, 1-hour TTL)
+- Reuses Phase 1 ShopifyBulkClient for polling and retry logic
+
+### Evidence Source
+- Technical Implementation Brief (Shopify Staged Upload documentation derivatives)
+- Shopify Admin GraphQL API: stagedUploadsCreate, bulkOperationRunMutation, productUpdate
+
 ## [2024-12-30] Phase 1: Shopify Bulk Client Implementation
 
 ### Added
@@ -24,7 +43,6 @@ feat/phase1-shopify-bulk-client
 ### Evidence Source
 - Technical Implementation Brief (Stage 2 Research Log derivatives)
 - Shopify Admin GraphQL API documentation (bulk operations)
-=======
 ## [1.4.1] - 2024-12-30
 
 ### Documentation Baseline Corrections
@@ -45,8 +63,6 @@ feat/phase1-shopify-bulk-client
 ### Verified / Closed
 - Legacy custom app creation constraint (Stage 2 Research Log)
 - CustomerJourney 30-day attribution window semantics (Stage 2 Research Log)
-main
-
 ## [1.4] - 2025-12-29
 
 ### Added

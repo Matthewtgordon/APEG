@@ -70,6 +70,63 @@
 
 ---
 
+## Phase 2: Shopify Bulk Mutations
+
+### TEST-MUTATION-01: Staged Upload Workflow (4-Step Dance)
+**Requirement:** Complete stagedUploadsCreate → multipart upload → bulkOperationRunMutation → poll
+**Test Method:**
+1. Run mock test: `pytest tests/unit/test_bulk_mutation_client_mock.py::test_staged_uploads_create_success -v`
+2. Verify StagedTarget model populated with url + parameters
+3. Verify staged_upload_path extracted from "key" parameter
+**Evidence Source:** Unit test execution log
+**Status:** READY FOR TEST
+
+### TEST-MUTATION-02: Multipart File Ordering
+**Requirement:** File field MUST be last in multipart/form-data (prevents 403)
+**Test Method:**
+1. Run mock test: `pytest tests/unit/test_bulk_mutation_client_mock.py::test_upload_jsonl_multipart_ordering -v`
+2. Inspect code: `grep -A 10 "add_field.*file" src/apeg_core/shopify/bulk_mutation_client.py`
+3. Verify file field added AFTER parameter loop
+**Evidence Source:** Code inspection + unit test
+**Status:** READY FOR TEST
+
+### TEST-MUTATION-03: Safe Tag Merge (Union Pattern)
+**Requirement:** Tags MUST be read-before-write; never blindly overwrite
+**Test Method:**
+1. Run mock test: `pytest tests/unit/test_bulk_mutation_client_mock.py::test_merge_product_updates_safe_write -v`
+2. Verify merged tags = current_tags ∪ incoming_tags
+3. Verify existing tags not removed
+**Evidence Source:** Unit test execution log
+**Status:** READY FOR TEST
+
+### TEST-MUTATION-04: JSONL Schema Compliance
+**Requirement:** Each JSONL line uses {"product": {...}} format matching GraphQL variables
+**Test Method:**
+1. Run mock test: `pytest tests/unit/test_bulk_mutation_client_mock.py::test_product_update_input_to_jsonl_dict -v`
+2. Verify output matches: `{"product": {"id": "...", "tags": [...], "seo": {...}}}`
+**Evidence Source:** Unit test execution log
+**Status:** READY FOR TEST
+
+### TEST-MUTATION-05: Mutation Lock Enforcement
+**Requirement:** Only 1 concurrent bulk mutation per shop
+**Test Method:**
+1. Run mock test: `pytest tests/unit/test_bulk_mutation_client_mock.py::test_run_product_update_bulk_lock_failure -v`
+2. Verify ShopifyBulkMutationLockedError raised when lock unavailable
+**Evidence Source:** Unit test execution log
+**Status:** READY FOR TEST
+
+### TEST-MUTATION-06: GraphQL String Verbatim Compliance
+**Requirement:** Use exact GraphQL strings from spec (no modifications)
+**Test Method:**
+1. Inspect: `grep -A 5 "MUTATION_PRODUCT_UPDATE" src/apeg_core/shopify/bulk_mutation_client.py`
+2. Verify mutation matches spec: `mutation call($product: ProductUpdateInput!) { productUpdate(...) }`
+3. Inspect: `grep -A 10 "MUTATION_STAGED_UPLOADS_CREATE" src/apeg_core/shopify/bulk_mutation_client.py`
+4. Verify resource=BULK_MUTATION_VARIABLES, httpMethod=POST
+**Evidence Source:** Code inspection
+**Status:** READY FOR TEST
+
+---
+
 ## PHASE 2 — Safe Writes
 
 | Test | Spec Section | Status | Evidence |
