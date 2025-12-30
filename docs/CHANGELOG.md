@@ -6,6 +6,14 @@
 
 ---
 
+## [2024-12-30] Phase 2 Closeout: Integration Verification PASS
+
+### Verified
+- 12.30 Phase 2 integration verification PASS; safe write + staged upload dance + cleanup
+
+### Evidence
+- Command: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
+
 ## [2024-12-30] Phase 2 Schema Fix: Complete groupObjects Removal
 
 ### Fixed (CRITICAL)
@@ -26,7 +34,7 @@
 - `src/apeg_core/shopify/graphql_strings.py`: MUTATION_BULK_OPERATION_RUN_MUTATION (removed both declaration and argument)
 - `src/apeg_core/shopify/bulk_mutation_client.py`: _bulk_operation_run_mutation (removed parameter and payload entry)
 - `docs/integration-architecture-spec-v1.4.1.md`: Removed all mutation-context groupObjects references
-- `docs/PROJECT_PLAN_ACTIVE.md`: Marked Phase 2 as BLOCKED until integration test passes
+- `docs/PROJECT_PLAN_ACTIVE.md`: Marked Phase 2 as VERIFIED after integration test pass
 
 ### Verification Steps
 1. Code sweep: `rg -n "groupObjects|$groupObjects|group_objects" src/apeg_core/` (expect: 0 hits)

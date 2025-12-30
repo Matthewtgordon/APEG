@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import aiohttp
@@ -239,7 +239,7 @@ async def main() -> None:
                     product_id = test_product_id
                     logger.info(f"Using provided test product: {product_id}")
                 else:
-                    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+                    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
                     title = f"APEG Safe Write Test {timestamp}"
                     product_id = await create_test_product(
                         session, graphql_endpoint, access_token, title
@@ -260,7 +260,7 @@ async def main() -> None:
                 logger.info(f"Initial tags: {sorted(initial_tags)}")
 
                 prefix = os.getenv("TEST_TAG_PREFIX", "apeg_safe_write_test")
-                timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+                timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
                 new_tag = f"{prefix}_{timestamp}"
 
                 if new_tag in initial_tags:

@@ -1,11 +1,12 @@
 # Phase 2 Integration Test Verification (Post Schema Fix)
 
-## Prerequisites
+## Prereqs
 - Schema fix applied (groupObjects removed)
 - DEMO store credentials in `.env`
 - Redis running on localhost:6379
+- Dependencies installed: `python -m pip install -r requirements.txt`
 
-## Execution
+## Run
 ```bash
 # Verify clean codebase
 rg -n "groupObjects|\$groupObjects" src/apeg_core/ || echo "✓ Code clean"
@@ -25,7 +26,12 @@ docker ps | grep redis || docker run -d -p 6379:6379 redis:7-alpine
 PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py
 ```
 
-## Expected Output
+## Expected PASS Signals
+
+- "PASS: Safe write preserved all original tags"
+- "PASS: New tag '<tag>' successfully added"
+- "PASS: Staged upload dance completed (no 403/400 errors)"
+- "PASS: ALL INTEGRATION TESTS PASSED"
 
 ### Success Pattern
 ```
