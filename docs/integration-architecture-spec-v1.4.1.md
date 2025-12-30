@@ -2292,7 +2292,7 @@ async def upload_to_gcs(jsonl_file: Path, upload_params: Dict) -> str:
         'file',
         open(jsonl_file, 'rb'),
         filename=jsonl_file.name,
-        content_type='application/jsonl'
+        content_type='text/jsonl'
     )
     
     # Step 3: Upload
@@ -2412,8 +2412,7 @@ async def start_bulk_operation(
         mutation($stagedUploadPath: String!) {
           bulkOperationRunMutation(
             mutation: "mutation call { productUpdate(input: $input) { product { id title descriptionHtml } userErrors { message field } } }",
-            stagedUploadPath: $stagedUploadPath,
-            groupObjects: false
+            stagedUploadPath: $stagedUploadPath
           ) {
             bulkOperation {
               id
@@ -2428,6 +2427,9 @@ async def start_bulk_operation(
           }
         }
     """, variables={"stagedUploadPath": staged_url})
+
+**NOTE:** `groupObjects` is query-only and NOT accepted for `bulkOperationRunMutation`.
+Do not include it in mutation variables.
     
     # Check for immediate errors (Addition #3: Start Failure Handling)
     user_errors = bulk_op_response['data']['bulkOperationRunMutation']['userErrors']
@@ -3062,7 +3064,7 @@ class BulkOperationConfig:
 - **MIME Type:** Must be `text/jsonl` (not `application/jsonl`)
 - **File Size:** Hard cap 100MB per JSONL file
 - **Mutation Limitation:** Only ONE connection field allowed in mutation selection set
-- **groupObjects:** Default `true` increases runtime/timeouts - recommend `false`
+- **groupObjects:** Query-only; do not include in bulkOperationRunMutation
 - **Result URLs:** Expire after 1 week - download and persist immediately
 - **Webhook Topic:** `bulk_operations/finish` (lowercase)
 - **Status Values:** Lowercase (`completed`, `failed`, `running`)
@@ -3082,8 +3084,7 @@ class BulkOperationConfig:
 10. ✓ Robust error handling (retry with backoff)
 11. ✓ Result persistence (URLs expire after 1 week)
 12. ✓ partialDataUrl support (failed operations with partial results)
-13. ✓ groupObjects=false (reduce runtime/timeout risk)
-14. ✓ Mutation constraint (one connection field only)
+13. ✓ Mutation constraint (one connection field only)
 
 ---
 
@@ -8821,7 +8822,7 @@ class TestShopifyBulkUpload:
         form_data = []
         for param in params:
             form_data.append((param['name'], param['value']))
-        form_data.append(('file', ('test.jsonl', b'{"input":{}}', 'application/jsonl')))
+        form_data.append(('file', ('test.jsonl', b'{"input":{}}', 'text/jsonl')))
         
         # 3. Upload
         result = await upload_to_staged_target(url, form_data)
@@ -8835,7 +8836,7 @@ class TestShopifyBulkUpload:
         staged = await shopify.staged_uploads_create(...)
         
         # WRONG order: file first
-        form_data = [('file', ('test.jsonl', b'{"input":{}}', 'application/jsonl'))]
+        form_data = [('file', ('test.jsonl', b'{"input":{}}', 'text/jsonl'))]
         for param in params:
             form_data.append((param['name'], param['value']))
         
@@ -10099,7 +10100,7 @@ LangGraph provides a built-in PostgreSQL-backed checkpoint saver that manages it
 
 ## Appendix E: Change Resolution Log
 
-**Document Version:** 1.4  
+**Document Version:** 1.4.1
 **Last Updated:** 2025-12-29  
 **Status:** UPDATED (Demo→Live Ready)
 
