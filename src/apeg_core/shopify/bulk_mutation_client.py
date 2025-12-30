@@ -157,7 +157,6 @@ class ShopifyBulkMutationClient:
                 bulk_op = await self._bulk_operation_run_mutation(
                     mutation=MUTATION_PRODUCT_UPDATE,
                     staged_upload_path=staged_target.staged_upload_path,
-                    group_objects=False,
                     client_identifier=f"apeg-phase2:{run_id}",
                 )
 
@@ -344,7 +343,6 @@ class ShopifyBulkMutationClient:
         self,
         mutation: str,
         staged_upload_path: str,
-        group_objects: bool,
         client_identifier: str,
     ) -> BulkOperation:
         """Step C: Trigger bulk mutation run."""
