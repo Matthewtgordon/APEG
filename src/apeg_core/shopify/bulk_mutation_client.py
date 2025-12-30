@@ -86,7 +86,7 @@ class ShopifyBulkMutationClient:
             logger=self.logger,
         )
 
-        self._mutation_lock_key = f"apeg:shopify:bulk_lock:{shop_domain}"
+        self._mutation_lock_key = f"apeg:shopify:bulk_mutation_lock:{shop_domain}"
         self._current_lock: Optional[AsyncRedisLock] = None
 
     async def run_product_update_bulk(
@@ -351,7 +351,6 @@ class ShopifyBulkMutationClient:
         variables = {
             "mutation": mutation,
             "stagedUploadPath": staged_upload_path,
-            "groupObjects": group_objects,
             "clientIdentifier": client_identifier,
         }
 

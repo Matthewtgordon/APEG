@@ -80,7 +80,7 @@ class ShopifyBulkClient:
         self.graphql_endpoint = (
             f"https://{shop_domain}/admin/api/{api_version}/graphql.json"
         )
-        self._lock_key = f"apeg:shopify:bulk_lock:{shop_domain}"
+        self._lock_key = f"apeg:shopify:bulk_query_lock:{shop_domain}"
         self._current_lock: Optional[AsyncRedisLock] = None
 
     async def submit_job(self, bulk_query: str) -> BulkOperation:
