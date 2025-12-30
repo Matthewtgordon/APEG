@@ -6,13 +6,15 @@
 
 ---
 
-## PHASE 0 — Config + Cutover
+## PHASE 0 — Configuration & Preconditions
 
-| Test | Spec Section | Status | Evidence |
-|------|--------------|--------|----------|
-| Shopify auth: `{ shop { name } }` | 1.8, Appendix F | REQUIRED | |
-| Meta token debug valid | 1.8, 6.12 | REQUIRED | |
-| n8n credential ID documented | 8.13 | REQUIRED | |
+| Test ID | Test Name | Spec Section | Method | Expected | Actual | Status | Evidence |
+|---------|-----------|--------------|--------|----------|--------|--------|----------|
+|  | Shopify auth: `{ shop { name } }` | 1.8, Appendix F |  |  |  | REQUIRED |  |
+|  | Meta token debug valid | 1.8, 6.12 |  |  |  | REQUIRED |  |
+|  | n8n credential ID documented | 8.13 |  |  |  | REQUIRED |  |
+| AT-P0-LEGACY-APP-01 | Legacy custom app creation constraints | Section 1.7 | Research validation | New apps after 2026-01-01 require Shopify Dev Dashboard; existing legacy apps unaffected | Matches expected | VERIFIED | Stage 2 Research Log |
+| AT-P0-CJ-ATTRIBUTION-01 | CustomerJourney attribution window semantics | Section 7 | Research validation | CustomerJourney uses a 30-day attribution window (not data retention); non-build-gating | Matches expected | VERIFIED | Stage 2 Research Log |
 
 ---
 

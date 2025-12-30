@@ -11,17 +11,34 @@
 
 **Spec Anchors:** Section 1.8, Appendix F, Security section
 
+- [X] Done 12.30: Documentation baseline corrections (SPEC-HDR-01 through DOCS-PP-02)
+
 | Deliverable | Status | Spec Section |
 |-------------|--------|--------------|
-| `.env.example` (no secrets) | [ ] | 1.8 |
-| `ENVIRONMENT.md` | [ ] | 1.8, Appendix F |
-| Config loader + validation | [ ] | 1.8 |
-| Secrets via env/secret store only | [ ] | 1.8 |
+| `.env.example` (no secrets) | [ ] ToDo: | 1.8 |
+| `ENVIRONMENT.md` | [ ] ToDo: | 1.8, Appendix F |
+| Config loader + validation | [ ] ToDo: | 1.8 |
+| Secrets via env/secret store only | [ ] ToDo: | 1.8 |
 
 **Acceptance Tests:**
-- [ ] Shopify auth smoke: `{ shop { name } }` returns store name
-- [ ] Meta token debug: valid + required scopes
-- [ ] n8n credential mapping verified (demo credential ID documented)
+- [ ] ToDo: Shopify auth smoke: `{ shop { name } }` returns store name
+- [ ] ToDo: Meta token debug: valid + required scopes
+- [ ] ToDo: n8n credential mapping verified (demo credential ID documented)
+
+## PHASE 0 — EXECUTABLE START PLAN
+
+- [ ] ToDo: Confirm Shopify app creation path (Dev Dashboard required for new apps after 2026-01-01; existing legacy custom apps unaffected).
+- [ ] ToDo: Update .env.example with any new required keys (no secrets).
+- [ ] ToDo: Create .env only if missing.
+- [ ] ToDo: If .env exists and must be changed, run backup first:
+```bash
+      cp .env .env.bak.$(date +%Y%m%d-%H%M%S)
+```
+- [ ] ToDo: Run Shopify auth smoke test (GraphQL: { shop { name } }) and paste evidence into ACCEPTANCE_TESTS.
+- [ ] ToDo: Record n8n credential IDs (DEMO) and paste evidence into ACCEPTANCE_TESTS.
+- [ ] ToDo: Decide Meta timing:
+    - If Phase 4 planned in next sprint: run token debug now and paste evidence into ACCEPTANCE_TESTS.
+    - Else: mark Meta token debug as DEFERRED in PROJECT_PLAN_ACTIVE and ACCEPTANCE_TESTS.
 
 ---
 
@@ -31,16 +48,16 @@
 
 | Deliverable | Status | Spec Section |
 |-------------|--------|--------------|
-| BulkJob model (id, type, status, shop_domain) | [ ] | 5.6 |
-| Distributed lock (1 query + 1 mutation per shop) | [ ] | 5.10 |
-| Poller: `node(id:) ... on BulkOperation` | [ ] | 5.6 |
-| Staged upload wrapper (hard gate on failure) | [ ] | 5.5 |
+| BulkJob model (id, type, status, shop_domain) | [ ] ToDo: | 5.6 |
+| Distributed lock (1 query + 1 mutation per shop) | [ ] ToDo: | 5.10 |
+| Poller: `node(id:) ... on BulkOperation` | [ ] ToDo: | 5.6 |
+| Staged upload wrapper (hard gate on failure) | [ ] ToDo: | 5.5 |
 
 **Acceptance Tests (VERIFIED in Stage 2):**
-- [x] Bulk query → COMPLETED via node(id:) polling
-- [x] Bulk mutation → COMPLETED via staged upload path
-- [x] Upload hard-gate: non-2xx prevents runMutation
-- [x] Tag merge preserves existing tags
+- [X] Done 12.29: Bulk query → COMPLETED via node(id:) polling
+- [X] Done 12.29: Bulk mutation → COMPLETED via staged upload path
+- [X] Done 12.29: Upload hard-gate: non-2xx prevents runMutation
+- [X] Done 12.29: Tag merge preserves existing tags
 
 ---
 
@@ -56,13 +73,13 @@
 
 | Deliverable | Status | Spec Section |
 |-------------|--------|--------------|
-| Tag hydration tool (fetch → union → update) | [ ] | 2.4.2 |
-| SEO update tool (ProductInput.seo) | [ ] | 2.3 |
-| Audit logging for all writes | [ ] | 9.x |
+| Tag hydration tool (fetch → union → update) | [ ] ToDo: | 2.4.2 |
+| SEO update tool (ProductInput.seo) | [ ] ToDo: | 2.3 |
+| Audit logging for all writes | [ ] ToDo: | 9.x |
 
 **Acceptance Tests:**
-- [ ] Write ops in DEMO with rollback plan
-- [ ] Audit log captures before/after state
+- [ ] ToDo: Write ops in DEMO with rollback plan
+- [ ] ToDo: Audit log captures before/after state
 
 ---
 
@@ -72,13 +89,13 @@
 
 | Deliverable | Status | Spec Section |
 |-------------|--------|--------------|
-| Webhook contract (trigger endpoints) | [ ] | 8.13 |
-| Credential-ID swap checklist | [ ] | 8.13 |
-| Execution log verification | [ ] | 8.13 |
+| Webhook contract (trigger endpoints) | [ ] ToDo: | 8.13 |
+| Credential-ID swap checklist | [ ] ToDo: | 8.13 |
+| Execution log verification | [ ] ToDo: | 8.13 |
 
 **Acceptance Tests:**
-- [ ] Workflow run in DEMO produces correct outputs
-- [ ] Post-swap: LIVE credential in execution log
+- [ ] ToDo: Workflow run in DEMO produces correct outputs
+- [ ] ToDo: Post-swap: LIVE credential in execution log
 
 ---
 
@@ -88,14 +105,14 @@
 
 | Deliverable | Status | Spec Section |
 |-------------|--------|--------------|
-| Meta connector (token debug, account read) | [ ] | 6.12 |
-| PAUSED campaign create path | [ ] | 6.12 |
-| Rate limit + error code handling | [ ] | 6.11 |
+| Meta connector (token debug, account read) | [ ] ToDo: | 6.12 |
+| PAUSED campaign create path | [ ] ToDo: | 6.12 |
+| Rate limit + error code handling | [ ] ToDo: | 6.11 |
 
 **Acceptance Tests:**
-- [ ] Token debug PASS
-- [ ] Ad account read PASS
-- [ ] Create PAUSED campaign (optional)
+- [ ] ToDo: Token debug PASS
+- [ ] ToDo: Ad account read PASS
+- [ ] ToDo: Create PAUSED campaign (optional)
 
 ---
 
@@ -105,22 +122,22 @@
 
 | Deliverable | Status | Spec Section |
 |-------------|--------|--------------|
-| CI workflows (tests + license scan) | [ ] | Appendix D |
-| Coverage gate | [ ] | Appendix D |
-| GPL denylist enforcement | [ ] | Section 1.7 |
+| CI workflows (tests + license scan) | [ ] ToDo: | Appendix D |
+| Coverage gate | [ ] ToDo: | Appendix D |
+| GPL denylist enforcement | [ ] ToDo: | Section 1.7 |
 
 **Acceptance Tests:**
-- [ ] CI green on PR
-- [ ] License scan green (no GPL in prod deps)
+- [ ] ToDo: CI green on PR
+- [ ] ToDo: License scan green (no GPL in prod deps)
 
 ---
 
 ## LIVE SWAP CHECKLIST
 
 See Appendix F in spec. Execute only when:
-- [ ] All Phase 0-3 acceptance tests PASS in DEMO
-- [ ] Smoke tests documented in ACCEPTANCE_TESTS.md
-- [ ] Credential swap procedure rehearsed
+- [ ] ToDo: All Phase 0-3 acceptance tests PASS in DEMO
+- [ ] ToDo: Smoke tests documented in ACCEPTANCE_TESTS.md
+- [ ] ToDo: Credential swap procedure rehearsed
 
 ---
 
