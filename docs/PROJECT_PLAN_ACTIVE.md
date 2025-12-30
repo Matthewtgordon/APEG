@@ -6,7 +6,7 @@
 **Current Phase:** PHASE 0
 
 ---
-
+## RETAIN FORMAT DO NOT RESTRUCTURE
 ## PHASE 0 — CONFIG + CUTOVER READINESS ⬅️ ACTIVE
 
 **Spec Anchors:** Section 1.8, Appendix F, Security section
