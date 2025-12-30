@@ -69,6 +69,12 @@
 
 ## PHASE 2 — SHOPIFY MUSCLE LAYER (SAFE WRITES)
 
+### PHASE 2: Bulk Mutations & Safe Write
+
+- [X] Done 12.30: Bulk Mutation Client (staged upload + safe tag merge + tests)
+- [ ] ToDo: Integration tests with real Shopify DEMO store (PHASE2_INTEGRATION_TEST_PLAN.md)
+- [ ] ToDo: Error recovery patterns (partialDataUrl handling for FAILED mutations)
+
 **Spec Anchors:** Section 2.4.2, product update rules
 
 | Deliverable | Status | Spec Section |
