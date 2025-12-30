@@ -1,7 +1,7 @@
 # Integration Architecture Specification
 ## EcomAgent + APEG + Advertising Agent
 
-**Version:** 1.4  
+**Version:** 1.4.1  
 **Date:** 2025-12-29  
 **Status:** PRODUCTION READY (Demo→Live)  
 **Author:** Matticulous + Claude  
@@ -251,8 +251,11 @@ The `etsyv3` Python library is licensed under GPL-3.0, which conflicts with APEG
 - Monitor [Shopify Developer Changelog](https://shopify.dev/changelog) for deprecations and breaking changes
 - Note: Quarterly release notes discontinued; Developer Changelog is now the authoritative source
 
-**Shopify Custom App Creation Change (2026-01-01):**
-As of January 1, 2026, Shopify custom apps can no longer be created from the Admin UI. App creation and management must follow Shopify's current recommended path (Partner Dashboard or CLI). Update implementation runbooks to match the new flow before this date.
+**Shopify Custom App Creation (Post-2026-01-01):**
+
+Starting 2026-01-01: you cannot create new legacy custom apps from the Shopify admin.
+New apps must be created/managed in the Shopify Dev Dashboard.
+Existing legacy custom apps already created are not automatically removed by this policy.
 
 **Model Context Protocol (MCP) Clarification:**
 Shopify's MCP servers (Dev MCP, Storefront MCP) are designed for AI assistants and chatbots. They are **not required** for APEG's Admin API usage. APEG continues using private app credentials and the ShopifyAPI library as planned. MCP integration is an optional enhancement track, not a core requirement.
@@ -4838,6 +4841,11 @@ async def collect_all_campaign_metrics(since: str, until: str):
 
 Privacy/consent restrictions can cause `customerJourney` to be null. Must have fallback attribution sources.
 
+**CustomerJourney Attribution Window:**
+
+CustomerJourney uses a 30-day attribution window (semantics), not a general data-retention guarantee.
+Treat as non-build-gating unless attribution correctness is required for decisions.
+
 **UTM Mapping Contract (V1 No-Pixel Attribution):**
 
 For deterministic attribution without Meta Pixel, enforce strict UTM parameter scheme:
@@ -5039,12 +5047,6 @@ async def collect_shopify_conversions(since: str, until: str):
     Collect orders from Shopify and attribute to campaigns
     
     Uses attribution waterfall to handle customerJourney nullability
-    
-    NOTE: customerJourney retention period is UNVERIFIED
-    - Treat attribution windows as configurable and validate per-store
-    - Pull orders frequently to avoid missing high-quality attribution
-    - Recommendation: Daily collection (not weekly/monthly)
-    - Do NOT gate build/deploy on retention assumptions
     """
     # Fetch orders via Shopify GraphQL
     orders_query = f"""
@@ -10139,7 +10141,7 @@ LangGraph provides a built-in PostgreSQL-backed checkpoint saver that manages it
 | DOC-05 | Appendix D checkpoint | APPLIED | Replaced SQLite DDL with PostgresSaver setup instructions |
 | DOC-06 | Section 1.7 | APPLIED | Added 2026-01-01 custom app creation change note |
 | DOC-07 | Section 5.6 Bulk Ops | SUPERSEDED by ST2-01 | bulkOperations query removed; node(id:) polling used instead |
-| DOC-08 | Section 7 Attribution | APPLIED | Marked customerJourney 30-day retention as UNVERIFIED |
+| DOC-08 | Section 7 Attribution | APPLIED | Clarified customerJourney attribution window semantics |
 | DOC-09 | Section 9.9 Meta Config | APPLIED | Added citations for Meta error codes 80004 and 368 |
 | DOC-10 | Appendix D openapi.yaml | DEFERRED | Stub expansion is DESIGN WORK; marked TEST REQUIRED |
 
@@ -10167,7 +10169,7 @@ LangGraph provides a built-in PostgreSQL-backed checkpoint saver that manages it
 
 | Item | Section | Action |
 |------|---------|--------|
-| customerJourney Retention | Section 7 | Do not gate build/deploy; locate official Shopify doc if needed |
+| CustomerJourney Attribution Window | Section 7 | Non-build-gating unless attribution correctness is required |
 | OpenAPI Stub Expansion | Appendix D | Design work; expand when APEG interface finalized |
 
 ### Deferred Items
