@@ -12,22 +12,40 @@ The test script enforces three hard safety gates:
 
 The script exits with code 2 if any safety gate fails.
 
-## Setup
+## Environment Setup
 
-### 1. Create Integration Test Environment File
+Template Source: Use `.env.example` as the canonical template for all environments.
+
+Steps:
+1. Copy the canonical template:
 ```bash
-cp .env.integration.example .env.integration
+cp .env.example .env.integration
 ```
 
-### 2. Configure DEMO Store Credentials
-Edit .env.integration and set:
-- SHOPIFY_STORE_DOMAIN - Your DEMO Shopify store URL
-- SHOPIFY_ADMIN_ACCESS_TOKEN - Admin API token for DEMO store
-- DEMO_STORE_DOMAIN_ALLOWLIST - Comma-separated list of allowed DEMO stores
+2. Configure DEMO credentials (APEG API Configuration section):
+```bash
+# Generate a random API key
+APEG_API_KEY=$(openssl rand -hex 32)
+```
+Edit `.env.integration` and set:
+- `SHOPIFY_STORE_DOMAIN` - Your DEMO Shopify store URL
+- `SHOPIFY_ADMIN_ACCESS_TOKEN` - Admin API token for DEMO store
 
-### 3. Start Redis (Required for Bulk Client)
+3. Fill in Integration Testing section:
+```bash
+DEMO_STORE_DOMAIN_ALLOWLIST=your-demo-store.myshopify.com
+# TEST_PRODUCT_ID=gid://shopify/Product/1234567890  # Optional
+# TEST_TAG_PREFIX=apeg_test_  # Optional
+```
+
+4. Start Redis (Required for Bulk Client):
 ```bash
 docker run -d -p 6379:6379 redis:7-alpine
+```
+
+5. Source the environment:
+```bash
+set -a; source .env.integration; set +a
 ```
 
 ## Running Tests
@@ -38,7 +56,7 @@ docker run -d -p 6379:6379 redis:7-alpine
 set -a; source .env.integration; set +a
 
 # Run integration tests
-python tests/integration/verify_phase2_safe_writes.py
+PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py
 ```
 
 ### Option 2: Using pytest
@@ -47,7 +65,7 @@ python tests/integration/verify_phase2_safe_writes.py
 set -a; source .env.integration; set +a
 
 # Run with pytest
-pytest tests/integration/verify_phase2_safe_writes.py -v -s
+PYTHONPATH=. pytest tests/integration/verify_phase2_safe_writes.py -v -s
 ```
 
 ## Test Scenarios

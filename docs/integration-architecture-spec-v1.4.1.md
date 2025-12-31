@@ -262,25 +262,53 @@ Existing legacy custom apps already created are not automatically removed by thi
 
 ### 1.8 Environment & Configuration Boundary (Demo vs Live)
 
-**Purpose:** Define the complete config surface area to prevent demo-to-live swap failures.
+**Purpose:** Define the complete config surface area and enforce parity so demo-to-live swaps and integration test runs cannot fail from missing variables.
 
-**Rule:** No secrets in repo. All credentials via env vars or secret store only.
+**Rule:**
+- No secrets in repo.
+- All credentials via environment variables or secret store only.
+- Canonical variable names MUST match implementation (see tables below).
 
-**Required Profiles:** `DEMO` and `LIVE` (switch via `ENVIRONMENT` var)
+**Required Profiles:**
+- `APEG_ENV=DEMO` or `APEG_ENV=LIVE` (canonical)
+- `APEG_ALLOW_WRITES=YES` is required for any mutation-capable execution path
 
-#### Config Surface Area
+**Environment Templates (Parity Rule):**
+- All variables under "APEG API Configuration" MUST exist in every environment template file committed to the repo (any file matching `.env*.example`).
+- If any new required variable is added to one template, it MUST be added to all templates in the same commit.
+- This parity rule is a hard gate for phase transitions (see Project Plan parity check).
+- **Phase transitions are blocked until the Environment Parity Check is recorded as PASS in ACCEPTANCE_TESTS evidence.**
+
+**Config Surface Area (Canonical)**
+
+**APEG API Configuration:**
+| Variable | Description |
+|----------|-------------|
+| `APEG_API_KEY` | User-defined secret string used as the API password for X-APEG-API-KEY header auth. Required at runtime. Treat like a password. Example: 32+ char random string (e.g., `apeg_live_3f6b9c2a8d1e4c7f9a0b1c2d3e4f5a6b`). Do not reuse Shopify tokens. |
+
+**APEG Runtime Safety Gates:**
+| Variable | Description |
+|----------|-------------|
+| `APEG_ENV` | `DEMO` or `LIVE`. DEMO-only safety gating is enforced in integration tooling. |
+| `APEG_ALLOW_WRITES` | Must be `YES` to allow write paths. |
+| `ENVIRONMENT` | Legacy alias for `APEG_ENV` (retain for backward compatibility). |
 
 **Shopify:**
 | Variable | Description |
 |----------|-------------|
 | `SHOPIFY_STORE_DOMAIN` | Store domain (e.g., `mystore.myshopify.com`) |
 | `SHOPIFY_ADMIN_ACCESS_TOKEN` | Admin API token (secret store) |
-| `SHOPIFY_API_VERSION` | Pinned version (quarterly upgrade policy) |
+| `SHOPIFY_API_VERSION` | Pinned Shopify API version (e.g., 2024-10) |
 | `SHOPIFY_WEBHOOK_SHARED_SECRET` | HMAC verification secret |
 | `SHOPIFY_APP_CLIENT_ID` | If OAuth flow used |
 | `SHOPIFY_APP_CLIENT_SECRET` | If OAuth flow used (secret store) |
 | `SHOPIFY_LOCATION_ID` | If inventory/location-specific operations |
 | `SHOPIFY_BULK_LOCK_NAMESPACE` | Optional lock key prefix |
+
+**Redis:**
+| Variable | Description |
+|----------|-------------|
+| `REDIS_URL` | Redis connection string (required for locking in bulk ops client) |
 
 **Meta Ads:**
 | Variable | Description |
@@ -308,9 +336,19 @@ Existing legacy custom apps already created are not automatically removed by thi
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `REDIS_URL` | Redis for distributed locks |
 | `LOG_LEVEL` | DEBUG, INFO, WARNING, ERROR |
-| `ENVIRONMENT` | `DEMO` or `LIVE` |
+
+**Integration Testing Only (DEMO):**
+| Variable | Description |
+|----------|-------------|
+| `DEMO_STORE_DOMAIN_ALLOWLIST` | Comma-separated allowlist; must include SHOPIFY_STORE_DOMAIN |
+| `TEST_PRODUCT_ID` | Optional; skips create/delete by using an existing product |
+| `TEST_TAG_PREFIX` | Optional; custom prefix for deterministic test tags |
+
+**Template Consolidation Policy:**
+- `.env.example` is the single canonical template.
+- Additional `.env.*.example` templates are discouraged; if present, they MUST follow the parity rule above.
+- Recommended structure is a single `.env.example` with commented sections for Integration Testing and Production, to prevent missing variables across workflows.
 
 ---
 

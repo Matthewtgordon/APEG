@@ -298,6 +298,98 @@
 
 ---
 
+## Phase 3 Part 2: n8n Workflow Integration
+
+### TEST-ENV-01: Environment Parity Check
+**Requirement:** All `.env*.example` templates MUST contain APEG_API_KEY
+**Test Method:**
+1. Run: `grep -R "APEG_API_KEY" .env*.example`
+2. Verify output shows at least one match per template file
+3. Manually inspect each template to confirm APEG API Configuration section exists
+**Evidence Source:** Command output + manual inspection confirmation
+**Status:** READY FOR TEST
+**Evidence:**
+```
+[Paste grep output here]
+```
+
+### TEST-N8N-01: Network + Auth Reachability (Negative Test)
+**Requirement:** n8n workflow MUST receive 401 when using invalid API key
+**Test Method:**
+1. Configure n8n HTTP Request node with invalid credential
+2. Set minimal valid body (dry_run=true, 1 product)
+3. Execute workflow
+4. Verify workflow FAILS with 401 Unauthorized error
+**Evidence Source:** n8n execution screenshot showing 401 error
+**Status:** BLOCKED (requires n8n instance)
+**Evidence:**
+```
+[Screenshot or error message paste]
+```
+
+### TEST-N8N-02: Dry Run Happy Path (202 Without Shopify Writes)
+**Requirement:** n8n workflow MUST receive 202 with job_id for valid dry run request
+**Test Method:**
+1. Configure n8n HTTP Request node with valid credential
+2. Set dry_run=true, valid product_id
+3. Execute workflow
+4. Verify workflow SUCCESS with statusCode=202 (response < 10s, no timeout)
+5. Verify response contains: job_id, status="queued", run_id, received_count=1
+6. Verify APEG logs show "DRY RUN MODE" message
+**Evidence Source:** n8n execution success + APEG server logs
+**Status:** BLOCKED (requires n8n instance + APEG server)
+**Evidence:**
+```
+n8n Response:
+{
+  "statusCode": 202,
+  "body": {
+    "job_id": "...",
+    "status": "queued",
+    "run_id": "...",
+    "received_count": 1
+  }
+}
+
+APEG Logs:
+[Paste relevant log lines]
+```
+
+### TEST-N8N-03: Live Single Item (Background Execution Proof)
+**Requirement:** Background job MUST execute and update Shopify product
+**Test Method:**
+1. Configure n8n with dry_run=false
+2. Use known product_id with timestamp-based test tag
+3. Execute workflow (verify 202 response < 10s, no timeout)
+4. Monitor APEG logs for bulk operation lifecycle
+5. Verify tag appears on product in Shopify admin
+**Evidence Source:** n8n timing + APEG logs + Shopify admin screenshot
+**Status:** BLOCKED (requires DEMO store credentials)
+**Evidence:**
+```
+Execution time: Xs
+APEG Logs:
+[Paste bulk operation logs]
+Shopify Admin: [Screenshot or tag list]
+```
+
+### TEST-INTEGRATION-01: Phase 2 Integration Tests with Consolidated Template
+**Requirement:** Phase 2 integration tests MUST still pass using updated template
+**Test Method:**
+1. Copy `.env.example` -> `.env.integration`
+2. Fill in DEMO credentials and Integration Testing section
+3. Source file: `set -a; source .env.integration; set +a`
+4. Run: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
+5. Verify exit code 0 and "ALL INTEGRATION TESTS PASSED"
+**Evidence Source:** Script output
+**Status:** READY FOR TEST (after template consolidation)
+**Evidence:**
+```
+[Paste execution output]
+```
+
+---
+
 ## PHASE 3 — n8n Orchestration
 
 | Test | Spec Section | Status | Evidence |
