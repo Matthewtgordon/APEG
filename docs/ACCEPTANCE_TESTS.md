@@ -498,14 +498,136 @@ Skipped: Configuration mismatch on test runner. Proceeding based on manual verif
 
 ---
 
-## PHASE 4 — Meta Ads
+## Phase 4: Data Collection & Metrics Intelligence
 
-| Test | Spec Section | Status | Evidence |
-|------|--------------|--------|----------|
-| Token debug valid + scopes | 6.12 | REQUIRED | |
-| Ad account read | 6.12 | REQUIRED | |
-| PAUSED campaign create | 6.12 | OPTIONAL | |
-| Interest ID lookup | 6.4 | REQUIRED | |
+### TEST-META-01: Meta Insights API Field Validation (SMOKE TEST)
+**Requirement:** Meta API MUST return required performance metrics fields
+**Test Method:**
+1. Set credentials: META_ACCESS_TOKEN, META_AD_ACCOUNT_ID
+2. Run: `PYTHONPATH=. pytest tests/smoke/test_meta_api.py -v`
+3. Verify HTTP 200 response
+4. Verify fields present: spend, impressions, ctr, cpc
+5. Verify outbound_clicks present (direct field OR actions array)
+**Evidence Source:** pytest output + field list
+**Status:** BLOCKED (requires Meta credentials)
+**Evidence:**
+```bash
+[Paste pytest output showing field validation]
+[List of available fields from API response]
+```
+
+---
+
+### TEST-SHOPIFY-01: Shopify Attribution Field Validation (SMOKE TEST)
+**Requirement:** Shopify GraphQL MUST return customerJourneySummary with UTM fields
+**Test Method:**
+1. Set credentials: SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_ACCESS_TOKEN
+2. Run: `PYTHONPATH=. pytest tests/smoke/test_shopify_attribution.py -v`
+3. Verify customerJourneySummary exists on orders
+4. Verify lastVisit/firstVisit include: landingPage, referrerUrl, utmParameters
+5. Verify utmParameters fields: campaign, source, medium, term, content
+6. Document edge cases (null attribution tolerance)
+**Evidence Source:** pytest output + sample order structure
+**Status:** BLOCKED (requires Shopify DEMO credentials)
+**Evidence:**
+```bash
+[Paste pytest output]
+[Sample order with UTM structure]
+[Edge case notes if applicable]
+```
+
+---
+
+### TEST-COLLECTOR-01: SQLite Idempotency Verification
+**Requirement:** Collector MUST be safe to re-run for same date (no duplicates)
+**Test Method:**
+1. Configure .env with Phase 4 credentials
+2. Run collector for specific date:
+```bash
+   PYTHONPATH=. python scripts/run_metrics_collector.py --date 2024-12-30
+```
+3. Query SQLite row counts:
+```sql
+   SELECT COUNT(*) FROM metrics_meta_daily WHERE metric_date='2024-12-30';
+   SELECT COUNT(*) FROM order_attributions WHERE created_at LIKE '2024-12-30%';
+   SELECT * FROM collector_state WHERE metric_date='2024-12-30';
+```
+4. Re-run collector for same date
+5. Verify row counts UNCHANGED
+6. Verify collector_state shows single success row per source
+**Evidence Source:** SQL query results before/after re-run
+**Status:** BLOCKED (requires credentials + data)
+**Evidence:**
+```sql
+-- First run:
+[Row count results]
+
+-- Second run:
+[Row count results - should match]
+
+-- collector_state:
+[State table showing single success row]
+```
+
+---
+
+### TEST-COLLECTOR-02: End-to-End Collection Verification
+**Requirement:** Daily collection MUST persist to both SQLite and JSONL
+**Test Method:**
+1. Configure strategy_tags.json with test campaigns
+2. Run full collection for yesterday:
+```bash
+   PYTHONPATH=. python scripts/run_metrics_collector.py -v
+```
+3. Verify JSONL files created:
+```bash
+   ls -lh data/metrics/raw/raw_meta_*
+   ls -lh data/metrics/raw/raw_shopify_*
+```
+4. Verify SQLite data:
+```sql
+   SELECT entity_type, COUNT(*) FROM metrics_meta_daily GROUP BY entity_type;
+   SELECT attribution_tier, COUNT(*) FROM order_attributions GROUP BY attribution_tier;
+```
+5. Verify attribution tier distribution (expect mix of 0/1/2/3)
+6. Spot-check strategy_tag matching (orders with recognized campaigns)
+**Evidence Source:** File listing + SQL query results + logs
+**Status:** BLOCKED (requires credentials + active campaigns)
+**Evidence:**
+```bash
+# JSONL files:
+[File listing with sizes]
+
+# SQLite data:
+[Query results showing counts]
+
+# Attribution tier distribution:
+Tier 0: X orders (no attribution)
+Tier 1: X orders (native UTM)
+Tier 2: X orders (landingPage parse)
+Tier 3: X orders (referrerUrl parse)
+
+# Strategy tag matches:
+[Sample orders showing utm_campaign -> strategy_tag linking]
+```
+
+---
+
+### TEST-ATTRIBUTION-01: Unit Test Coverage
+**Requirement:** Attribution logic MUST have comprehensive test coverage
+**Test Method:**
+1. Run unit tests: `pytest tests/unit/test_attribution.py -v`
+2. Verify all test cases pass:
+   - URL parsing (with/without UTM)
+   - Tier 1/2/3/0 selection logic
+   - Strategy tag matching (exact/substring/slug/none)
+   - Evidence JSON structure
+**Evidence Source:** pytest coverage report
+**Status:** READY FOR TEST
+**Evidence:**
+```bash
+[Paste pytest results showing 100% pass]
+```
 
 ---
 

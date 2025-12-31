@@ -1,7 +1,23 @@
 {
   "strategy_tags": [
-    "apeg_test_strategy",
-    "holiday_2024",
-    "summer_clearance"
-  ]
+    "holiday_gifts_2024",
+    "birthstone_january",
+    "birthstone_february",
+    "birthstone_march",
+    "birthstone_april",
+    "birthstone_may",
+    "birthstone_june",
+    "birthstone_july",
+    "birthstone_august",
+    "birthstone_september",
+    "birthstone_october",
+    "birthstone_november",
+    "birthstone_december",
+    "artisan_collection",
+    "wedding_bands",
+    "engagement_rings",
+    "apeg_seo_test",
+    "apeg_phase3_test"
+  ],
+  "_comment": "Update this list when launching new campaigns. Used for utm_campaign -> strategy_tag matching."
 }
