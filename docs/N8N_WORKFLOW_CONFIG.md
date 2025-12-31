@@ -11,9 +11,57 @@ Key Behavior:
 
 ---
 
-## 1. HTTP REQUEST NODE CONFIGURATION
+## 1. PREREQUISITE: n8n Environment Variables
 
-### Node Settings
+Set these in your n8n deployment environment (not APEG's .env):
+```bash
+# Required
+APEG_API_BASE_URL=http://192.168.1.50:8000  # Use LAN IP or Tailscale IP (NOT localhost if in Docker)
+SHOPIFY_STORE_DOMAIN=your-demo-store.myshopify.com
+
+# Optional (credential encryption - HIGHLY RECOMMENDED for self-hosted)
+N8N_ENCRYPTION_KEY=your-random-32-char-encryption-key
+```
+
+Docker Network Configuration:
+
+If n8n runs in Docker, DO NOT use `localhost` to reach APEG on the host machine.
+
+Choose one:
+- LAN IP (recommended): `http://192.168.1.50:8000` (replace with your host's actual LAN IP)
+- Tailscale/VPN IP: `http://100.x.x.x:8000` (if using Tailscale)
+- host.docker.internal: May require `--add-host=host.docker.internal:host-gateway` (Linux only, not recommended)
+
+APEG server must listen on `0.0.0.0` (not `127.0.0.1`) for external connections:
+```bash
+PYTHONPATH=. uvicorn src.apeg_core.main:app --host 0.0.0.0 --port 8000
+```
+
+---
+
+## 2. CREATE N8N CREDENTIAL (Header Auth)
+
+DO NOT hardcode API keys in workflow JSON.
+
+Steps:
+1. Navigate to: Credentials -> + New Credential
+2. In the search box, type "HTTP Request" and select it
+3. Inside the credential configuration modal:
+   - Credential Name: `APEG API Key (DEMO)` or `APEG API Key (LIVE)`
+   - Authentication: Select `Header Auth` from dropdown
+   - Header Name: `X-APEG-API-KEY`
+   - Header Value: Paste your APEG_API_KEY value
+     - Best practice: Use n8n expression if available: `{{ $env.APEG_API_KEY }}`
+     - Otherwise, paste the actual key securely
+4. Click Save
+
+Important: Header Auth is NOT a standalone credential type. It's a configuration option within the generic HTTP Request credential.
+
+---
+
+## 3. HTTP REQUEST NODE CONFIGURATION
+
+### Basic Settings
 
 Method: `POST`
 
@@ -21,9 +69,8 @@ URL:
 ```
 {{ $env.APEG_API_BASE_URL }}/api/v1/jobs/seo-update
 ```
-- Set `APEG_API_BASE_URL` environment variable:
-  - Development: `http://localhost:8000`
-  - Production: `https://apeg.yourdomain.com`
+
+Authentication: Select the credential you created in Step 2
 
 Send Body: `ON`
 
@@ -32,99 +79,78 @@ Body Content Type: `JSON`
 Response Format: `JSON`
 
 Options:
-- [X] Include Response Headers and Status
+- Include Response Headers and Status (required to capture statusCode)
 
 Timeout: `10000` (10 seconds - API responds immediately with 202)
 
 ---
 
-### Headers
+### JSON Body Configuration
 
-Manual Header Configuration:
-- Name: `Content-Type`
-- Value: `application/json`
+CRITICAL: Array Typing Rule
 
-Authentication: Use n8n Credential (see Section 2)
+The API expects `products` as a JSON Array (not a string). If your upstream node outputs products as a JSON string, you must parse it.
 
----
+Safe Expression Pattern:
+```javascript
+{{ typeof $json.products === 'string' ? JSON.parse($json.products) : $json.products }}
+```
 
-### JSON Body
-
-Required Fields:
+Complete Body Structure:
 ```json
 {
-  "run_id": "n8n-{{ $now.setZone('UTC').toISO() }}",
+  "run_id": "{{ 'n8n-' + $now.setZone('UTC').toISO() }}",
   "shop_domain": "{{ $env.SHOPIFY_STORE_DOMAIN }}",
   "dry_run": false,
-  "products": [
-    {
-      "product_id": "gid://shopify/Product/1234567890",
-      "tags_add": ["apeg_seo", "birthstone_march"],
-      "tags_remove": ["old_tag"],
-      "seo": {
-        "title": "Beautiful Handcrafted March Birthstone Ring",
-        "description": "Aquamarine gemstone ring with artisan metalwork"
-      }
-    }
-  ]
+  "products": "{{ typeof $json.products === 'string' ? JSON.parse($json.products) : $json.products }}"
 }
 ```
 
-Field Definitions:
+Field Mapping (Expression Mode):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `run_id` | string | Unique identifier for idempotency tracking. Use n8n execution ID pattern. |
-| `shop_domain` | string | Must match APEG's `SHOPIFY_STORE_DOMAIN`. Use env var. |
-| `dry_run` | boolean | `true` = validate only, no Shopify writes. `false` = execute. |
-| `products` | array | Non-empty list of products to update. |
-| `products[].product_id` | string | Shopify GID (e.g., `gid://shopify/Product/123`) |
-| `products[].tags_add` | array | Tags to add (merged with existing). Optional. |
-| `products[].tags_remove` | array | Tags to remove from existing. Optional. |
-| `products[].seo` | object | SEO updates (title/description). Optional. |
+To map fields reliably in n8n:
+1. Click the (fx) Expression button in the Value field
+2. Clear the expression editor completely
+3. Click the desired variable in the left panel to insert it
+4. Save
+
+Do NOT drag-and-drop; this can produce malformed expressions depending on n8n version.
 
 ---
 
-## 2. CREDENTIAL MANAGEMENT
+### Field Definitions
 
-### Create n8n Credential (Header Auth)
-
-DO NOT hardcode API keys in workflow JSON.
-
-Steps:
-1. Navigate to: Credentials -> New Credential
-2. Select: HTTP Request -> Header Auth
-3. Configure:
-   - Name: `APEG API Key (DEMO)` or `APEG API Key (LIVE)`
-   - Header Name: `X-APEG-API-KEY`
-   - Header Value: [paste APEG_API_KEY value]
-4. Save credential
-
-In HTTP Request Node:
-- Authentication: Select the credential created above
-
-Security (Self-Hosted n8n):
-- Set `N8N_ENCRYPTION_KEY` environment variable to encrypt stored credentials
-- See: https://docs.n8n.io/hosting/configuration/environment-variables/security/
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `run_id` | string | Yes | Unique identifier for idempotency tracking. Use n8n execution ID pattern. |
+| `shop_domain` | string | Yes | Must match APEG's `SHOPIFY_STORE_DOMAIN`. Use env var. |
+| `dry_run` | boolean | Yes | `true` = validate only, no Shopify writes. `false` = execute. |
+| `products` | array | Yes | Non-empty list of products to update. MUST BE ARRAY, NOT STRING. |
+| `products[].product_id` | string | Yes | Shopify GID (e.g., `gid://shopify/Product/123`) |
+| `products[].tags_add` | array | No | Tags to add (merged with existing). Default: `[]` |
+| `products[].tags_remove` | array | No | Tags to remove from existing. Default: `[]` |
+| `products[].seo` | object | No | SEO updates (title/description). |
+| `products[].seo.title` | string | No | SEO title |
+| `products[].seo.description` | string | No | SEO meta description |
 
 ---
 
-## 3. RECOMMENDED WORKFLOW LAYOUT
+## 4. RECOMMENDED WORKFLOW LAYOUT
 
 Minimum Working Workflow:
 ```
 [Manual Trigger]
     ->
 [Set Node: Build Payload]
-    - Set run_id: n8n-{{ $now.setZone('UTC').toISO() }}
-    - Set shop_domain: {{ $env.SHOPIFY_STORE_DOMAIN }}
-    - Set dry_run: false
-    - Set products: [...]
+    - run_id: {{ 'n8n-' + $now.setZone('UTC').toISO() }}
+    - shop_domain: {{ $env.SHOPIFY_STORE_DOMAIN }}
+    - dry_run: false
+    - products: [{ product_id: "gid://shopify/Product/123", tags_add: ["test"] }]
     ->
 [HTTP Request: POST to APEG]
     - URL: {{ $env.APEG_API_BASE_URL }}/api/v1/jobs/seo-update
-    - Auth: Header Auth credential
-    - Body: {{ $json }}
+    - Auth: HTTP Request credential (Header Auth)
+    - Body: JSON (see Section 3)
     ->
 [IF Node: Assert 202]
     - Condition: {{ $json.statusCode }} == 202
@@ -132,6 +158,7 @@ Minimum Working Workflow:
 [Set Node: Extract Job Info]
     - job_id: {{ $json.body.job_id }}
     - run_id: {{ $json.body.run_id }}
+    - status: {{ $json.body.status }}
     - received_count: {{ $json.body.received_count }}
     ->
 [Optional: Log to Sheet/Database]
@@ -139,157 +166,103 @@ Minimum Working Workflow:
 
 ---
 
-## 4. ENVIRONMENT VARIABLES (n8n)
+## 5. END-TO-END VERIFICATION TEST (Dry Run)
 
-Required:
-```bash
-APEG_API_BASE_URL=http://localhost:8000
-SHOPIFY_STORE_DOMAIN=your-demo-store.myshopify.com
-```
+Preconditions:
+- APEG API running and accessible from n8n
+- n8n environment contains `APEG_API_BASE_URL` and `SHOPIFY_STORE_DOMAIN`
+- n8n credential configured with valid `APEG_API_KEY`
 
-Optional (for credential via env - NOT RECOMMENDED):
-```bash
-# Prefer credential store over env vars for API keys
-# APEG_API_KEY=your-secret-key
-```
+Workflow Configuration:
 
-Set in n8n:
-- Docker: Add to docker-compose.yml environment section
-- Self-hosted: Add to .env file or systemd service
-- Cloud: Use n8n cloud environment variable settings
-
----
-
-## 5. END-TO-END VERIFICATION TESTS
-
-### TEST 0: Network + Auth Reachability (Negative Test)
-
-Purpose: Prove n8n can reach APEG and auth enforcement works
-
-Steps:
-1. Configure HTTP Request node with correct URL
-2. Use invalid credential (wrong API key)
-3. Set minimal valid body: dry_run: true, 1 product
-4. Execute workflow
-
-Expected Result:
-- Workflow FAILS
-- HTTP status: 401 Unauthorized
-- Error message: "Invalid API key"
-
-Evidence: Screenshot of n8n execution error showing 401
-
----
-
-### TEST 1: Dry Run Happy Path (202 Without Shopify Writes)
-
-Purpose: Prove 202 response and dry run execution
-
-Steps:
-1. Configure HTTP Request node with valid credential
-2. Set body:
+1. Manual Trigger outputs:
 ```json
 {
-  "run_id": "n8n-test-dry-run",
-  "shop_domain": "{{ $env.SHOPIFY_STORE_DOMAIN }}",
+  "run_id": "n8n-e2e-dryrun-001",
+  "shop_domain": "your-demo-store.myshopify.com",
   "dry_run": true,
-  "products": [{
-    "product_id": "gid://shopify/Product/1234567890",
-    "tags_add": ["test-tag"]
-  }]
+  "products": "[{\"product_id\":\"gid://shopify/Product/1\",\"tags_add\":[\"test-tag\"],\"tags_remove\":[],\"seo\":{\"title\":\"Test Title\",\"description\":\"Test Desc\"}}]"
 }
 ```
-3. Execute workflow
 
-Expected Result:
-- Workflow SUCCESS
-- HTTP status: 202 Accepted
+2. HTTP Request Node:
+   - Method: POST
+   - URL: `{{ $env.APEG_API_BASE_URL }}/api/v1/jobs/seo-update`
+   - Auth: HTTP Request credential (Header Auth)
+   - Body Content Type: JSON
+   - Body:
+```json
+{
+  "run_id": "{{ $json.run_id }}",
+  "shop_domain": "{{ $json.shop_domain }}",
+  "dry_run": "{{ $json.dry_run }}",
+  "products": "{{ typeof $json.products === 'string' ? JSON.parse($json.products) : $json.products }}"
+}
+```
+
+PASS CRITERIA:
+- HTTP node returns statusCode = 202
 - Response body contains:
   - job_id (UUID format)
   - status: "queued"
-  - run_id: "n8n-test-dry-run"
+  - run_id: "n8n-e2e-dryrun-001"
   - received_count: 1
+- Workflow completes immediately (no waiting for Shopify)
+- APEG server logs show:
+  - "Starting SEO update job: ... dry_run=True"
+  - "DRY RUN MODE: Would update 1 products"
+  - "Job [job_id] completed (dry run)"
 
-APEG Server Logs:
-- "Starting SEO update job: ... dry_run=True"
-- "DRY RUN MODE: Would update 1 products"
-- "Job [job_id] completed (dry run)"
-
-Evidence:
-- n8n execution success screenshot
+Evidence Required:
+- n8n execution success screenshot showing 202 response
 - APEG server log excerpt
 
 ---
 
-### TEST 2: Live Single Item (Prove Background Dispatch)
-
-Purpose: Prove background execution and Shopify write
-
-Steps:
-1. Set body:
-```json
-{
-  "run_id": "n8n-test-live-single",
-  "shop_domain": "{{ $env.SHOPIFY_STORE_DOMAIN }}",
-  "dry_run": false,
-  "products": [{
-    "product_id": "gid://shopify/Product/[KNOWN_PRODUCT_ID]",
-    "tags_add": ["apeg_phase3_test_{{ $now.toMillis() }}"]
-  }]
-}
-```
-2. Execute workflow
-
-Expected Result:
-- Workflow returns 202 within 10 seconds (no timeout)
-- Response body matches TEST 1 structure
-
-APEG Server Logs:
-- "Fetching current state for 1 products"
-- "Submitting bulk mutation for 1 products"
-- "Bulk operation submitted: [bulk_op_id]"
-- "Job [job_id] completed successfully"
-
-Shopify Admin Verification:
-- Open product in Shopify admin
-- Confirm test tag is present
-
-Evidence:
-- n8n execution time < 10s
-- APEG logs showing bulk operation lifecycle
-- Shopify admin screenshot with tag
-
----
-
-### TEST 3: Live Small Batch (Prove Batch Acceptance)
-
-Purpose: Prove multi-product batch handling
-
-Steps:
-1. Set body with 5 products
-2. Execute workflow
-
-Expected Result:
-- Workflow returns 202
-- received_count: 5
-- APEG logs show batch processing
-
-Evidence:
-- n8n execution showing received_count=5
-- APEG logs confirming 5 products processed
-
----
-
 ## 6. TROUBLESHOOTING
+
+### Error: "Cannot connect" / ECONNREFUSED
+
+Cause: n8n cannot reach APEG server (network issue)
+
+Fix:
+1. If n8n is in Docker and APEG is on host:
+   - DO NOT use `localhost` or `127.0.0.1`
+   - Use host's LAN IP: `http://192.168.1.50:8000`
+   - Or Tailscale IP: `http://100.x.x.x:8000`
+2. Verify APEG server is listening on 0.0.0.0:
+```bash
+   # Check server bind address
+   ps aux | rg uvicorn
+   # Should show --host 0.0.0.0
+```
+3. Test connectivity from inside n8n container:
+```bash
+   docker exec -it n8n curl http://192.168.1.50:8000/docs
+   # Should return HTML (or 401 if auth enforced)
+```
+
+---
 
 ### Error: "Invalid API key" (401)
 
 Cause: Credential mismatch between n8n and APEG server
 
 Fix:
-1. Verify `APEG_API_KEY` on APEG server: `echo $APEG_API_KEY`
+1. Verify APEG server key:
+```bash
+   echo $APEG_API_KEY
+```
 2. Verify n8n credential value matches exactly
 3. Check for whitespace/newlines in credential value
+4. Test with curl:
+```bash
+   curl -X POST http://192.168.1.50:8000/api/v1/jobs/seo-update \
+     -H "X-APEG-API-KEY: ${APEG_API_KEY}" \
+     -H "Content-Type: application/json" \
+     -d '{"run_id":"test","shop_domain":"demo.myshopify.com","dry_run":true,"products":[]}'
+   # Should return 400 (empty products) NOT 401
+```
 
 ---
 
@@ -298,30 +271,50 @@ Fix:
 Cause: `shop_domain` in request does not match APEG's `SHOPIFY_STORE_DOMAIN`
 
 Fix:
-1. Verify APEG server: `echo $SHOPIFY_STORE_DOMAIN`
-2. Update n8n env var or body to match
+1. Verify APEG server domain:
+```bash
+   echo $SHOPIFY_STORE_DOMAIN
+```
+2. Update n8n env var `SHOPIFY_STORE_DOMAIN` to match
+3. Ensure workflow uses: `{{ $env.SHOPIFY_STORE_DOMAIN }}`
 
 ---
 
-### Error: Request timeout
+### Error: 422 Unprocessable Entity (products field)
 
-Cause: APEG server unreachable or timeout too short
+Cause: `products` sent as a string instead of array
+
+Example of WRONG:
+```json
+{
+  "products": "[{\"product_id\":\"...\"}]"  // STRING - WRONG
+}
+```
+
+Example of CORRECT:
+```json
+{
+  "products": [{"product_id":"..."}]  // ARRAY - CORRECT
+}
+```
 
 Fix:
-1. Verify APEG server is running: `curl http://localhost:8000/docs`
-2. Check network connectivity (firewall, DNS)
-3. Increase timeout if needed (should not be necessary for 202 response)
+Use the safe expression pattern:
+```javascript
+{{ typeof $json.products === 'string' ? JSON.parse($json.products) : $json.products }}
+```
 
 ---
 
 ### Success but no Shopify changes
 
-Cause: `dry_run: true` OR background job failed
+Cause: `dry_run: true` OR background job failed OR writes disabled
 
 Fix:
 1. Check body: ensure `dry_run: false`
 2. Check APEG server logs for job execution errors
-3. Verify `APEG_ALLOW_WRITES=YES` on APEG server
+3. Verify APEG server has: `APEG_ALLOW_WRITES=YES`
+4. Verify APEG has valid Shopify credentials
 
 ---
 
@@ -340,4 +333,9 @@ No Retry on Failure:
 
 No Job Status Query:
 - Cannot query job status by job_id
-- Future enhancement: GET /api/v1/jobs/{job_id} endpoint
+- Future enhancement: `GET /api/v1/jobs/{job_id}` endpoint
+
+In-Process Background Tasks:
+- Jobs are not persisted
+- Server restart interrupts running jobs
+- Future enhancement: persistent queue (Celery, RQ)

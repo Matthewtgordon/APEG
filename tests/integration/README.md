@@ -14,39 +14,70 @@ The script exits with code 2 if any safety gate fails.
 
 ## Environment Setup
 
-Template Source: Use `.env.example` as the canonical template for all environments.
+Template Source: `.env.example` is the canonical template for ALL environments.
 
-Steps:
+IMPORTANT: Do NOT use `.env.integration.example` if it exists - it has been deprecated to prevent environment variable drift.
+
+### Steps:
+
 1. Copy the canonical template:
 ```bash
 cp .env.example .env.integration
 ```
 
-2. Configure DEMO credentials (APEG API Configuration section):
+2. Configure APEG API credentials:
 ```bash
-# Generate a random API key
+# Generate a random API key (user-defined secret)
 APEG_API_KEY=$(openssl rand -hex 32)
+echo "APEG_API_KEY=${APEG_API_KEY}" >> .env.integration
 ```
-Edit `.env.integration` and set:
-- `SHOPIFY_STORE_DOMAIN` - Your DEMO Shopify store URL
-- `SHOPIFY_ADMIN_ACCESS_TOKEN` - Admin API token for DEMO store
 
-3. Fill in Integration Testing section:
+3. Configure DEMO Shopify credentials:
 ```bash
+# Edit .env.integration and fill in:
+SHOPIFY_STORE_DOMAIN=your-demo-store.myshopify.com
+SHOPIFY_ADMIN_ACCESS_TOKEN=shpat_your_demo_token
+SHOPIFY_API_VERSION=2024-10
+```
+
+4. Enable write operations:
+```bash
+# Edit .env.integration and set:
+APEG_ENV=DEMO
+APEG_ALLOW_WRITES=YES
+```
+
+5. Uncomment and configure Integration Testing section:
+```bash
+# Edit .env.integration and uncomment:
 DEMO_STORE_DOMAIN_ALLOWLIST=your-demo-store.myshopify.com
 # TEST_PRODUCT_ID=gid://shopify/Product/1234567890  # Optional
 # TEST_TAG_PREFIX=apeg_test_  # Optional
 ```
 
-4. Start Redis (Required for Bulk Client):
-```bash
-docker run -d -p 6379:6379 redis:7-alpine
-```
-
-5. Source the environment:
+6. Source the environment:
 ```bash
 set -a; source .env.integration; set +a
 ```
+
+7. Run integration tests:
+```bash
+PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py
+```
+
+### Template Parity Rule
+
+When adding new required variables:
+1. Update `.env.example` FIRST
+2. Regenerate your `.env.integration` from the updated template
+3. This prevents \"works in one env, fails in another\" drift
+
+### Troubleshooting
+
+Error: \"APEG_API_KEY environment variable not configured\"
+- Verify you sourced the .env.integration file
+- Verify APEG_API_KEY exists in .env.integration and has a non-empty value
+- Check for typos in variable name (case-sensitive)
 
 ## Running Tests
 
