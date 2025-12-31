@@ -1,4 +1,5 @@
 # Integration test environment (contains secrets)
+.env
 .env.integration
 
 # Integration test artifacts

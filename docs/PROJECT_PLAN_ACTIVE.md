@@ -11,20 +11,27 @@
 
 **Environment Parity Check:** PASS required before marking any phase complete.
 
-**Check:** All `.env*.example` templates contain the full 'APEG API Configuration' variable set (including `APEG_API_KEY`).
+**Purpose:** Prevent environment variable drift that causes runtime failures.
 
-**Execution:**
+**Check Procedure:**
 ```bash
-# Manual verification (minimum)
+# Verify .env was created from latest .env.example
 grep -R "APEG_API_KEY" .env*.example
 
-# Expected output: At least one match per template file
-# .env.example:N:APEG_API_KEY=...
+# Expected output: At least one match showing APEG_API_KEY exists
+# .env.example:XX:APEG_API_KEY=...
 ```
 
-**Evidence:** Paste command output + confirmation of PASS into ACCEPTANCE_TESTS.md
+**Manual Verification:**
+1. Open `.env.example` and your active `.env` (or `.env.integration`, `.env.production`)
+2. Confirm ALL variables in "APEG API Configuration" section exist in active env
+3. Confirm APEG_API_KEY has a valid value (not placeholder)
 
-**Status:** BLOCKING - Phase 3 cannot be marked complete until PASS recorded
+**Evidence Required:**
+- Paste command output into ACCEPTANCE_TESTS.md under TEST-ENV-01
+- Record PASS or FAIL with timestamp
+
+**Blocking Rule:** No phase can be marked complete until Environment Parity Check shows PASS.
 
 ---
 ## PHASE 0 — CONFIG + CUTOVER READINESS ⬅️ ACTIVE
@@ -117,22 +124,43 @@ grep -R "APEG_API_KEY" .env*.example
 
 ### PHASE 3: n8n Orchestration Bindings
 
+#### Part 1: FastAPI Backend (COMPLETE)
 - [X] Done 12.30: FastAPI endpoint (POST /api/v1/jobs/seo-update)
 - [X] Done 12.30: API key authentication (X-APEG-API-KEY → 401 on invalid)
 - [X] Done 12.30: Background task dispatch (FastAPI BackgroundTasks)
 - [X] Done 12.30: Safe-write pipeline integration (Phase 2 client)
 - [X] Done 12.30: aiohttp timeout configuration (30s connect, 300s total)
 - [X] Done 12.30: PYTHONPATH execution documentation
-- [X] Done 12.30: Environment parity check (APEG_API_KEY in all templates) - GATE
-- [ ] ToDo: n8n workflow configuration (HTTP Request node + credential setup)
-- [ ] ToDo: n8n verification tests (TEST 0-3 execution + evidence)
-- [ ] ToDo: Integration architecture spec update (Section 1.8)
-- [ ] ToDo: Job status callback endpoint (optional: webhook for completion)
+
+#### Part 2: n8n Integration + Environment Parity (IN PROGRESS)
+- [X] Done 12.30: Environment parity enforcement (BLOCKER - must pass before phase complete)
+  - [X] Done 12.30: Consolidate .env.example (single canonical template)
+  - [X] Done 12.30: Deprecate .env.integration.example
+  - [X] Done 12.30: Section 1.8 update (environment governance)
+  - [X] Done 12.30: TEST-ENV-01 execution + PASS evidence
+- [X] Done 12.30: n8n workflow configuration
+  - [X] Done 12.30: Create N8N_WORKFLOW_CONFIG.md with corrections
+  - [X] Done 12.30: HTTP Request credential setup (Header Auth within HTTP Request)
+  - [X] Done 12.30: Array typing pattern (products field)
+  - [X] Done 12.30: Docker networking guidance (no localhost assumption)
+- [ ] ToDo: n8n verification tests (remaining)
+  - [X] Done 12.30: TEST-N8N-01: Auth failure (401) - negative test
+  - [X] Done 12.30: TEST-N8N-02: Dry run (202) - happy path
+  - [ ] ToDo: TEST-N8N-03: Live execution - background job proof
+- [X] Done 12.30: Documentation updates
+  - [X] Done 12.30: API_USAGE.md: APEG_API_KEY clarity + n8n pointer
+  - [X] Done 12.30: Integration test README: template reference updates
+
+#### Part 3: Future Enhancements (BACKLOG)
+- [ ] Future: Job status callback endpoint (webhook for completion)
+- [ ] Future: Persistent job queue (Celery/RQ)
+- [ ] Future: GET /api/v1/jobs/{job_id} status query endpoint
 
 **Phase 3 Completion Criteria:**
-- All tests in ACCEPTANCE_TESTS.md (TEST-API-01 through TEST-N8N-03) recorded as PASS
-- Environment Parity Check PASS evidence recorded
-- n8n workflow executes successfully (TEST 1 minimum)
+1. All tests in ACCEPTANCE_TESTS.md (TEST-API-01 through TEST-N8N-03) recorded as PASS
+2. Environment Parity Check (TEST-ENV-01) recorded as PASS
+3. n8n workflow executes successfully (minimum: TEST-N8N-02 dry run)
+4. Evidence recorded in ACCEPTANCE_TESTS.md for all verification tests
 
 **Acceptance Tests:**
 - [ ] ToDo: Workflow run in DEMO produces correct outputs

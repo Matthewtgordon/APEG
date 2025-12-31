@@ -6,46 +6,76 @@
 
 ---
 
-## [2024-12-30] Phase 3 Part 2: n8n Configuration + Environment Parity
+## [2024-12-30] Phase 3 Part 2: n8n Configuration + Environment Parity (REVISED)
+
+### Critical Fixes
+- Environment Variable Drift: Consolidated .env.integration.example into .env.example (single canonical template)
+- n8n Credential Confusion: Clarified Header Auth is within HTTP Request credential (not standalone)
+- Array Typing (422 Prevention): Added explicit products array handling pattern for n8n
+- Docker Networking: Fixed localhost assumption with LAN IP / Tailscale guidance
 
 ### Added
 - `docs/N8N_WORKFLOW_CONFIG.md`: Complete n8n workflow configuration guide
-  - HTTP Request node setup (URL, headers, body schema)
-  - Credential management (Header Auth pattern)
-  - End-to-end verification tests (TEST 0-3)
-  - Troubleshooting guide
+  - HTTP Request credential setup (Header Auth within HTTP Request - NOT standalone)
+  - Array typing pattern (prevent 422 from stringified products)
+  - Docker network configuration (LAN IP, not localhost)
+  - Expression mode field mapping (avoid drag-and-drop issues)
+  - End-to-end dry run verification test
+  - Comprehensive troubleshooting guide
 - Environment Parity Gate: Mandatory phase transition blocker in PROJECT_PLAN_ACTIVE.md
-- ACCEPTANCE_TESTS.md: n8n verification tests (TEST-N8N-01 through TEST-N8N-03)
-- ACCEPTANCE_TESTS.md: Environment parity check (TEST-ENV-01)
+- ACCEPTANCE_TESTS.md: n8n verification tests (TEST-N8N-01 through TEST-N8N-05)
+- ACCEPTANCE_TESTS.md: Environment parity check (TEST-ENV-01) - BLOCKING
 
 ### Changed
 - `docs/integration-architecture-spec-v1.4.1.md` Section 1.8: FULL REPLACEMENT
+  - Added Environment Governance subsection
   - Added APEG_API_KEY to canonical config surface area
-  - Enforced environment template parity rule
+  - Enforced single canonical template (.env.example)
   - Added phase transition blocker for parity check
-  - APEG_ENV is canonical; ENVIRONMENT retained as legacy alias
-- `.env.example`: Added APEG API Configuration + Integration Testing sections
-- `.env.integration.example`: Consolidated into `.env.example`
-- `docs/API_USAGE.md`: Added APEG_API_KEY definition and security guidance
-- `tests/integration/README.md`: Updated to reference `.env.example` as canonical template
-- `docs/PROJECT_PLAN_ACTIVE.md`: Added Phase Transition Gate (Environment Parity Check)
-- `docs/PROJECT_PLAN_ACTIVE.md`: Updated Phase 3 completion criteria
+  - Added Network Configuration variables (APEG_API_BASE_URL)
+  - Deprecated multiple .env.*.example templates
+- `.env.example`: COMPLETE CONSOLIDATION
+  - Added APEG API Configuration section with APEG_API_KEY
+  - Added Integration Testing section (commented, for DEMO)
+  - Added Network Configuration section (optional, for production)
+  - Added Future Integrations placeholders (commented)
+  - Now single source of truth for all environments
+- `.env.integration.example`: DEPRECATED (deleted OR replaced with pointer)
+- `docs/API_USAGE.md`: Major improvements
+  - Added \"What is APEG_API_KEY?\" section with generation guidance
+  - Clarified user-defined secret (not system-provided)
+  - Added security warnings (do not reuse Shopify tokens)
+  - Replaced n8n example with pointer to N8N_WORKFLOW_CONFIG.md
+  - Added array typing quick reference
+- `tests/integration/README.md`: Updated to reference .env.example as canonical template
+- `docs/PROJECT_PLAN_ACTIVE.md`:
+  - Added Phase Transition Gate (Environment Parity Check) - BLOCKING
+  - Reorganized Phase 3 into Part 1 (complete), Part 2 (in progress), Part 3 (backlog)
+  - Updated completion criteria to include parity check requirement
 
 ### Security
 - APEG_API_KEY generation guidance: `openssl rand -hex 32`
-- n8n credential encryption key requirement documented
-- Explicit warning against reusing Shopify tokens as API keys
+- User-defined secret pattern (not system token reuse)
+- n8n credential encryption key requirement (N8N_ENCRYPTION_KEY)
+- Explicit warnings against placeholder values in production
 
-### Phase 3 Workflow
-- n8n -> APEG FastAPI (202 immediate response)
-- Header Auth credential (no hardcoded keys)
-- Environment variable parity enforced across all templates
-- Dry run mode testing before live writes
+### Phase 3 Workflow Corrections
+- n8n -> APEG: LAN IP / Tailscale (NOT localhost in Docker)
+- HTTP Request credential -> Header Auth subtype (NOT standalone)
+- products field: Array type enforcement (prevent 422)
+- Expression mode: Explicit (fx) instructions (avoid drag-and-drop)
+
+### Architectural Improvements
+- Environment Governance: Single canonical template enforced
+- Phase Transition Gate: Prevents drift-related failures
+- Template Parity Rule: All APEG API vars must exist in .env.example
+- Network Configuration: APEG_API_BASE_URL guidance (n8n env, not APEG env)
 
 ### Evidence Source
-- Phase 3 Part 2 Technical Implementation Brief
-- n8n HTTP Request node documentation
-- Environment management parity audit findings
+- Phase 3 Part 2 Technical Implementation Brief (REVISED)
+- Spec Addendum Package (LANE A-D corrections)
+- n8n HTTP Request credential documentation verification
+- Docker networking behavior verification (host.docker.internal constraints)
 
 ## [2024-12-30] Phase 3: n8n API Layer (REVISED)
 

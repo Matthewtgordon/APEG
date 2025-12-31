@@ -273,25 +273,29 @@ Existing legacy custom apps already created are not automatically removed by thi
 - `APEG_ENV=DEMO` or `APEG_ENV=LIVE` (canonical)
 - `APEG_ALLOW_WRITES=YES` is required for any mutation-capable execution path
 
-**Environment Templates (Parity Rule):**
-- All variables under "APEG API Configuration" MUST exist in every environment template file committed to the repo (any file matching `.env*.example`).
-- If any new required variable is added to one template, it MUST be added to all templates in the same commit.
-- This parity rule is a hard gate for phase transitions (see Project Plan parity check).
+**Environment Governance:**
+- `.env.example` is the **sole canonical environment template**.
+- All APEG API Configuration variables MUST exist in the canonical template.
+- Any phase-specific notes are comments/sections inside the same template.
 - **Phase transitions are blocked until the Environment Parity Check is recorded as PASS in ACCEPTANCE_TESTS evidence.**
+
+**Environment Templates (Parity Rule):**
+- All variables under "APEG API Configuration" MUST exist in `.env.example`.
+- If any new required variable is added, it MUST be added to `.env.example` in the same commit.
+- Additional `.env.*.example` templates are **deprecated** to prevent drift.
 
 **Config Surface Area (Canonical)**
 
 **APEG API Configuration:**
 | Variable | Description |
 |----------|-------------|
-| `APEG_API_KEY` | User-defined secret string used as the API password for X-APEG-API-KEY header auth. Required at runtime. Treat like a password. Example: 32+ char random string (e.g., `apeg_live_3f6b9c2a8d1e4c7f9a0b1c2d3e4f5a6b`). Do not reuse Shopify tokens. |
+| `APEG_API_KEY` | User-defined secret string (treat like a password). Used for X-APEG-API-KEY header auth. Example: `apeg_sk_live_3f6b9c2a8d1e4c7f9a0b1c2d3e4f5a6b` (32+ chars). Do NOT reuse Shopify tokens. Generate: `openssl rand -hex 32` |
 
 **APEG Runtime Safety Gates:**
 | Variable | Description |
 |----------|-------------|
 | `APEG_ENV` | `DEMO` or `LIVE`. DEMO-only safety gating is enforced in integration tooling. |
 | `APEG_ALLOW_WRITES` | Must be `YES` to allow write paths. |
-| `ENVIRONMENT` | Legacy alias for `APEG_ENV` (retain for backward compatibility). |
 
 **Shopify:**
 | Variable | Description |
@@ -309,6 +313,22 @@ Existing legacy custom apps already created are not automatically removed by thi
 | Variable | Description |
 |----------|-------------|
 | `REDIS_URL` | Redis connection string (required for locking in bulk ops client) |
+
+**Integration Testing Only (DEMO):**
+| Variable | Description |
+|----------|-------------|
+| `DEMO_STORE_DOMAIN_ALLOWLIST` | Comma-separated allowlist; must include SHOPIFY_STORE_DOMAIN |
+| `TEST_PRODUCT_ID` | Optional; skips create/delete by using an existing product |
+| `TEST_TAG_PREFIX` | Optional; custom prefix for deterministic test tags |
+
+**Network Configuration (Optional - for n8n/external callers):**
+| Variable | Description |
+|----------|-------------|
+| `APEG_API_HOST` | Server bind address (default: 0.0.0.0) |
+| `APEG_API_PORT` | Server port (default: 8000) |
+| `APEG_API_BASE_URL` | Full base URL for external callers (example: http://192.168.1.50:8000) |
+
+**Note:** `APEG_API_BASE_URL` is typically set in n8n's environment (not APEG's), allowing n8n workflows to reference `$env.APEG_API_BASE_URL` for dynamic URL construction.
 
 **Meta Ads:**
 | Variable | Description |
@@ -337,18 +357,7 @@ Existing legacy custom apps already created are not automatically removed by thi
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `LOG_LEVEL` | DEBUG, INFO, WARNING, ERROR |
-
-**Integration Testing Only (DEMO):**
-| Variable | Description |
-|----------|-------------|
-| `DEMO_STORE_DOMAIN_ALLOWLIST` | Comma-separated allowlist; must include SHOPIFY_STORE_DOMAIN |
-| `TEST_PRODUCT_ID` | Optional; skips create/delete by using an existing product |
-| `TEST_TAG_PREFIX` | Optional; custom prefix for deterministic test tags |
-
-**Template Consolidation Policy:**
-- `.env.example` is the single canonical template.
-- Additional `.env.*.example` templates are discouraged; if present, they MUST follow the parity rule above.
-- Recommended structure is a single `.env.example` with commented sections for Integration Testing and Production, to prevent missing variables across workflows.
+| `ENVIRONMENT` | Legacy alias for `APEG_ENV` (retain for backward compatibility). |
 
 ---
 

@@ -12,6 +12,7 @@ https://apeg.yourdomain.com  # Production
 ```
 
 ## Authentication
+
 All endpoints require API key authentication via header:
 ```
 X-APEG-API-KEY: your-secret-api-key
@@ -19,16 +20,18 @@ X-APEG-API-KEY: your-secret-api-key
 
 **What is APEG_API_KEY?**
 
-`APEG_API_KEY` is a user-defined secret string configured on the APEG server (environment variable `APEG_API_KEY`). Treat it like a password.
+`APEG_API_KEY` is a **user-defined secret string** configured on the APEG server (environment variable `APEG_API_KEY`). **Treat it like a password.**
 
 - **Format:** 32+ character random string (recommended: hex-encoded)
 - **Generation:** `openssl rand -hex 32`
-- **Example:** `apeg_live_3f6b9c2a8d1e4c7f9a0b1c2d3e4f5a6b`
+- **Example formats (non-functional):**
+  - `apeg_sk_live_3f6b9c2a8d1e4c7f9a0b1c2d3e4f5a6b`
+  - `apeg_key_demo_abc123def456ghi789jkl012mno345pq`
 - **Security:** Do NOT reuse Shopify access tokens. Do NOT commit to repo.
 
-The APEG FastAPI server validates incoming requests by comparing the `X-APEG-API-KEY` header value against the `APEG_API_KEY` environment variable. Requests with missing or mismatched keys receive 401 Unauthorized.
+The APEG FastAPI server validates incoming requests by comparing the `X-APEG-API-KEY` header value against the `APEG_API_KEY` environment variable.
 
-Missing or invalid API keys return 401 Unauthorized.
+**Missing or invalid API keys return 401 Unauthorized** with `WWW-Authenticate: API-Key` header.
 
 ## Endpoints
 
@@ -113,22 +116,17 @@ Job failures are logged server-side; no status callback currently implemented.
 RELIABILITY NOTE: Background tasks are in-process. Long-running jobs may be interrupted by server restarts. Jobs are not persisted or retried automatically.
 
 ## Example: n8n HTTP Request Node
-```json
-{
-  "method": "POST",
-  "url": "http://localhost:8000/api/v1/jobs/seo-update",
-  "headers": {
-    "X-APEG-API-KEY": "={{$env.APEG_API_KEY}}",
-    "Content-Type": "application/json"
-  },
-  "body": {
-    "run_id": "={{$workflow.id}}_={{$execution.id}}",
-    "shop_domain": "={{$env.SHOPIFY_STORE_DOMAIN}}",
-    "products": "={{$json.products}}",
-    "dry_run": false
-  }
-}
+
+See complete n8n workflow configuration: [docs/N8N_WORKFLOW_CONFIG.md](./N8N_WORKFLOW_CONFIG.md)
+
+Quick Reference - Critical Typing Issue:
+
+When mapping `products` field in n8n, ensure it sends as a JSON Array (not a string):
+```javascript
+{{ typeof $json.products === 'string' ? JSON.parse($json.products) : $json.products }}
 ```
+
+This prevents 422 errors from incorrect type serialization.
 
 ## Example: curl
 ```bash
