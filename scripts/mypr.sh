@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# 1) Create a feature branch from main
+# ./scripts/mypr.sh init feat/my-change
+# 2) Make edits and commit
+# git add .
+# git commit -m "feat: my change"
+# 3) Push + open PR
+# ./scripts/mypr.sh pr --fill
 set -euo pipefail
 
 usage() {
