@@ -214,7 +214,66 @@ grep -R "APEG_API_KEY" .env*.example
 
 ---
 
-## PHASE 5 — HARDENING + CI/CD
+## PHASE 5 — FEEDBACK LOOP & REFINEMENT ENGINE
+
+### PHASE 5: Feedback Loop & Refinement Engine (IN PROGRESS)
+
+#### Part 1: Core Analysis & Decision Engine (COMPLETE)
+- [X] Done 12.31: Feedback database schema (seo_versions, feedback_runs, feedback_actions)
+- [X] Done 12.31: Product-level attribution (order_line_attributions table)
+- [X] Done 12.31: Strategy tag mapping resolver (multiple methods)
+- [X] Done 12.31: Analyzer module (metrics aggregation, diagnosis matrix)
+- [X] Done 12.31: Version control module (Champion/Challenger, rollback)
+- [X] Done 12.31: LLM prompt builders (schema validation)
+- [X] Done 12.31: CLI entry point (analysis mode functional)
+- [X] Done 12.31: Unit tests (diagnosis matrix, analyzer logic)
+
+#### Part 2: LLM Integration & Job Emission (BLOCKED)
+- [ ] ToDo: Claude API integration for Challenger generation
+  - Requires ANTHROPIC_API_KEY configuration
+  - Implement async LLM client with retry logic
+  - Integrate prompt builder + output validation
+- [ ] ToDo: Phase 3 job emission implementation
+  - POST to /api/v1/jobs/seo-update
+  - Track phase3_job_id in seo_versions
+  - Rollback job emission (restore Champion)
+- [ ] ToDo: Propose mode implementation
+  - Load candidates from analyzer
+  - Generate Challengers via LLM
+  - Create seo_versions proposals
+  - Require approval workflow
+- [ ] ToDo: Execute mode implementation
+  - Approve -> emit Phase 3 jobs
+  - Mark as applied with evaluation window
+  - Record job_id
+
+#### Part 3: Data Dependencies (BLOCKED - REQUIRES BACKFILL)
+- [ ] ToDo: Populate strategy_tag_mappings table
+  - Method A: Track APEG ad creation (future)
+  - Method B: Parse existing campaign/ad names
+  - Method C: Fetch utm_campaign from ad URLs
+- [ ] ToDo: Backfill order_line_attributions
+  - Rerun Phase 4 Shopify collector with updated GraphQL query
+  - Verify product-level ROAS computation
+  - Record evidence in ACCEPTANCE_TESTS.md (TEST-FEEDBACK-04)
+
+#### Part 4: Evaluation Engine (BACKLOG)
+- [ ] Future: Outcome evaluation (compare pre/post windows)
+- [ ] Future: Winner promotion (supersede Champion with Challenger)
+- [ ] Future: Auto-rollback on LOSS outcome
+- [ ] Future: Budget automation (scale recommendations -> execution)
+
+**Phase 5 Completion Criteria:**
+1. All acceptance tests pass (TEST-FEEDBACK-01 through TEST-FEEDBACK-04)
+2. LLM integration functional (Challenger generation working)
+3. Phase 3 job emission working (apply + rollback verified)
+4. strategy_tag_mappings populated (at least Method B coverage)
+5. order_line_attributions populated (backfill complete)
+6. Evidence recorded in ACCEPTANCE_TESTS.md
+
+---
+
+## PHASE 6 — HARDENING + CI/CD
 
 **Spec Anchors:** Appendix D (CI), license scan
 
