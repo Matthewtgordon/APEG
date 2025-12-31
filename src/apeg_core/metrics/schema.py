@@ -12,22 +12,26 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
-def init_database(db_path: str | Path) -> None:
+def init_database(db_path: str | Path | sqlite3.Connection) -> None:
     """Initialize metrics database with schema.
 
     Creates tables if they don't exist.
     Enables WAL mode for concurrent reads.
 
     Args:
-        db_path: Path to SQLite database file
+        db_path: Path to SQLite database file or SQLite connection
     """
-    db_path = Path(db_path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    conn = sqlite3.connect(db_path)
+    if isinstance(db_path, sqlite3.Connection):
+        conn = db_path
+        should_close = False
+    else:
+        db_path = Path(db_path)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(db_path)
+        should_close = True
 
     try:
         conn.execute("PRAGMA journal_mode=WAL")
@@ -56,7 +60,8 @@ def init_database(db_path: str | Path) -> None:
             logger.debug("Database schema up to date (version %s)", current_version)
 
     finally:
-        conn.close()
+        if should_close:
+            conn.close()
 
 
 def _apply_schema(conn: sqlite3.Connection) -> None:
@@ -128,6 +133,49 @@ def _apply_schema(conn: sqlite3.Connection) -> None:
 
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS order_line_attributions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id TEXT NOT NULL,
+            order_created_at TEXT NOT NULL,
+            product_id TEXT NOT NULL,
+            variant_id TEXT,
+            quantity INTEGER NOT NULL,
+            line_revenue REAL NOT NULL,
+            currency TEXT NOT NULL,
+            strategy_tag TEXT,
+            attribution_tier INTEGER NOT NULL,
+            confidence REAL NOT NULL,
+            raw_source TEXT NOT NULL,
+            collected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(order_id, product_id, variant_id)
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_line_product
+        ON order_line_attributions(product_id)
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_line_strategy
+        ON order_line_attributions(strategy_tag)
+        WHERE strategy_tag IS NOT NULL
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_line_created
+        ON order_line_attributions(order_created_at)
+        """
+    )
+
+    conn.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_orders_created
         ON order_attributions(created_at)
         """
@@ -146,6 +194,37 @@ def _apply_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_orders_campaign
         ON order_attributions(utm_campaign)
         WHERE utm_campaign IS NOT NULL
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS strategy_tag_mappings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            strategy_tag TEXT NOT NULL,
+            mapping_method TEXT NOT NULL,
+            mapping_confidence REAL NOT NULL,
+            metadata_json TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(entity_type, entity_id)
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_mapping_entity
+        ON strategy_tag_mappings(entity_type, entity_id)
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_mapping_tag
+        ON strategy_tag_mappings(strategy_tag)
         """
     )
 

@@ -509,11 +509,11 @@ Skipped: Configuration mismatch on test runner. Proceeding based on manual verif
 4. Verify fields present: spend, impressions, ctr, cpc
 5. Verify outbound_clicks present (direct field OR actions array)
 **Evidence Source:** pytest output + field list
-**Status:** BLOCKED (requires Meta credentials)
+**Status:** SKIPPED (no data returned for test date)
 **Evidence:**
 ```bash
-[Paste pytest output showing field validation]
-[List of available fields from API response]
+PYTHONPATH=. pytest tests/smoke/test_meta_api.py -v
+tests/smoke/test_meta_api.py::test_meta_insights_fields SKIPPED (No data returned for test date (no ad spend))
 ```
 
 ---
@@ -528,12 +528,11 @@ Skipped: Configuration mismatch on test runner. Proceeding based on manual verif
 5. Verify utmParameters fields: campaign, source, medium, term, content
 6. Document edge cases (null attribution tolerance)
 **Evidence Source:** pytest output + sample order structure
-**Status:** BLOCKED (requires Shopify DEMO credentials)
+**Status:** SKIPPED (no orders found in test date range)
 **Evidence:**
 ```bash
-[Paste pytest output]
-[Sample order with UTM structure]
-[Edge case notes if applicable]
+PYTHONPATH=. pytest tests/smoke/test_shopify_attribution.py -v
+tests/smoke/test_shopify_attribution.py::test_shopify_attribution_fields SKIPPED (No orders found in test date range)
 ```
 
 ---
@@ -592,23 +591,23 @@ Skipped: Configuration mismatch on test runner. Proceeding based on manual verif
 5. Verify attribution tier distribution (expect mix of 0/1/2/3)
 6. Spot-check strategy_tag matching (orders with recognized campaigns)
 **Evidence Source:** File listing + SQL query results + logs
-**Status:** BLOCKED (requires credentials + active campaigns)
+**Status:** PARTIAL (no Meta data; Shopify skipped as already collected)
 **Evidence:**
 ```bash
-# JSONL files:
-[File listing with sizes]
-
-# SQLite data:
-[Query results showing counts]
-
-# Attribution tier distribution:
-Tier 0: X orders (no attribution)
-Tier 1: X orders (native UTM)
-Tier 2: X orders (landingPage parse)
-Tier 3: X orders (referrerUrl parse)
-
-# Strategy tag matches:
-[Sample orders showing utm_campaign -> strategy_tag linking]
+PYTHONPATH=. python3 scripts/run_metrics_collector.py --date 2025-12-30
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.collector: MetricsCollectorService initialized
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.collector: Database: data/metrics.db
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.collector: Strategy catalog: 18 tags
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.collector: Starting collection for 2025-12-30
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.meta_collector: Fetched 0 campaign-level insights for 2025-12-30
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.meta_collector: Wrote 0 rows to data/metrics/raw/raw_meta_campaign_2025-12-30.jsonl
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.meta_collector: Persisted 0 campaign metrics to SQLite
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.meta_collector: Fetched 0 ad-level insights for 2025-12-30
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.meta_collector: Wrote 0 rows to data/metrics/raw/raw_meta_ad_2025-12-30.jsonl
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.meta_collector: Persisted 0 ad metrics to SQLite
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.collector: Meta collection successful for 2025-12-30
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.collector: Skipping Shopify collection for 2025-12-30 (already collected)
+2025-12-31 12:38:37 [INFO] src.apeg_core.metrics.collector: Collection complete for 2025-12-30
 ```
 
 ---
@@ -631,7 +630,149 @@ Tier 3: X orders (referrerUrl parse)
 
 ---
 
-## PHASE 5 — CI/CD
+## Phase 5: Feedback Loop & Refinement Engine
+
+### TEST-FEEDBACK-01: Read + Aggregate (READY)
+**Requirement:** Analyzer MUST load metrics and compute deterministic aggregates
+**Test Method:**
+1. Populate test database with sample metrics_meta_daily rows
+2. Populate strategy_tag_mappings for test entities
+3. Run analyzer.load_strategy_metrics() for 7D window
+4. Verify output contains correct aggregates per strategy_tag
+5. Verify KPI computations (ROAS, CTR, CVR proxy)
+**Evidence Source:** Unit test + SQL query verification
+**Status:** READY FOR TEST
+**Evidence:**
+```python
+# Sample test data and expected outputs
+[Paste test data + results]
+```
+
+---
+
+### TEST-FEEDBACK-02: Mapping Enforcement (READY)
+**Requirement:** System MUST NOT emit jobs when entity->strategy_tag mapping missing
+**Test Method:**
+1. Create metrics_meta_daily rows WITHOUT corresponding strategy_tag_mappings
+2. Run analyzer in propose mode
+3. Verify analyzer skips unmapped entities
+4. Verify ZERO job emission (hard stop)
+5. Verify warning logs indicate missing mappings
+**Evidence Source:** Analyzer output + job count verification
+**Status:** READY FOR TEST
+**Evidence:**
+```
+[Log output showing skipped entities]
+[Job count: 0]
+```
+
+---
+
+### TEST-FEEDBACK-03: SEO Versioning (READY)
+**Requirement:** Version control MUST support proposal -> apply -> revert cycle
+**Test Method:**
+1. Create test product snapshot (Champion)
+2. Create Challenger snapshot (different title/description)
+3. Call version_control.create_proposal()
+4. Verify seo_versions row created with status=PROPOSED
+5. Call version_control.approve() and mark_applied()
+6. Verify status=APPLIED, phase3_job_id recorded
+7. Call version_control.revert()
+8. Verify status=REVERTED, Champion snapshot returned
+**Evidence Source:** SQL queries + version control logs
+**Status:** READY FOR TEST
+**Evidence:**
+```sql
+-- Version creation:
+[SQL query results showing PROPOSED -> APPROVED -> APPLIED -> REVERTED]
+
+-- Snapshot verification:
+[Champion snapshot JSON]
+[Challenger snapshot JSON]
+[Diff summary JSON]
+```
+
+---
+
+### TEST-FEEDBACK-04: Product-Level Attribution (BLOCKED - REQUIRES BACKFILL)
+**Requirement:** Analyzer MUST compute product-level ROAS when order_line_attributions populated
+**Test Method:**
+1. Populate order_line_attributions with test data (multiple products per order)
+2. Run analyzer with product-level aggregation enabled
+3. Verify product-level ROAS ranking
+4. Verify products with ROAS < 2.0 flagged reliably
+**Evidence Source:** SQL queries + analyzer output
+**Status:** BLOCKED (requires Phase 4 collector rerun with line item capture)
+**Evidence:**
+```sql
+-- Sample order_line_attributions data:
+[SQL query showing populated table]
+
+-- Product-level ROAS:
+[Query results showing product_id, ROAS, flag]
+```
+
+---
+
+### TEST-FEEDBACK-05: Diagnosis Matrix Coverage (READY)
+**Requirement:** Diagnosis matrix MUST cover all CTR x ROAS combinations
+**Test Method:**
+1. Run unit tests: `pytest tests/unit/test_feedback_analyzer.py -v`
+2. Verify test cases for:
+   - CTR_LOW_ROAS_HIGH -> REFINE_AD_CREATIVE
+   - CTR_HIGH_ROAS_LOW -> REFINE_SHOPIFY_SEO
+   - CTR_LOW_ROAS_LOW -> PAUSE_STRATEGY
+   - CTR_HIGH_ROAS_HIGH -> SCALE_BUDGET
+   - INSUFFICIENT_DATA -> NO_ACTION
+3. Verify all tests pass
+**Evidence Source:** pytest output
+**Status:** READY FOR TEST
+**Evidence:**
+```bash
+[Paste pytest results showing 100% pass for diagnosis tests]
+```
+
+---
+
+### TEST-FEEDBACK-06: LLM Output Validation (BLOCKED - REQUIRES LLM INTEGRATION)
+**Requirement:** LLM outputs MUST be validated before persistence
+**Test Method:**
+1. Mock LLM API to return test Challenger JSON
+2. Test Case 1: Valid output (all fields, within limits)
+   - Verify validation passes
+3. Test Case 2: Invalid output (missing fields)
+   - Verify validation fails with specific errors
+4. Test Case 3: Character limit violation (title > 70 chars)
+   - Verify validation fails
+5. Test Case 4: Prohibited claims present
+   - Verify validation fails
+**Evidence Source:** Validation function test results
+**Status:** BLOCKED (requires LLM integration)
+**Evidence:**
+```python
+[Test cases with pass/fail results]
+```
+
+---
+
+### TEST-FEEDBACK-07: Phase 3 Job Emission (BLOCKED - REQUIRES INTEGRATION)
+**Requirement:** Apply flow MUST emit Phase 3 job and record job_id
+**Test Method:**
+1. Create approved seo_versions row
+2. Call apply flow with Phase 3 API integration
+3. Verify POST to /api/v1/jobs/seo-update succeeds
+4. Verify 202 Accepted response
+5. Verify job_id recorded in seo_versions.phase3_job_id
+6. Verify evaluation_start_at timestamp set
+**Evidence Source:** HTTP logs + SQL verification
+**Status:** BLOCKED (requires Phase 3 API integration)
+**Evidence:**
+```
+[HTTP request/response logs]
+[SQL query showing job_id recorded]
+```
+
+## PHASE 6 — CI/CD
 
 | Test | Spec Section | Status | Evidence |
 |------|--------------|--------|----------|

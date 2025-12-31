@@ -110,6 +110,26 @@ class ShopifyOrdersCollector:
                   }
                 }
               }
+              lineItems(first: 250) {
+                edges {
+                  node {
+                    id
+                    quantity
+                    variant {
+                      id
+                      product {
+                        id
+                      }
+                    }
+                    originalTotalSet {
+                      shopMoney {
+                        amount
+                        currencyCode
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -256,6 +276,103 @@ class ShopifyOrdersCollector:
             db_conn.commit()
             logger.info("Persisted %s order attributions to SQLite", len(orders))
 
+            self._persist_line_items(orders, db_conn)
+            logger.info("Persisted line items for %s orders", len(orders))
+
         except Exception as exc:
             logger.error("SQLite write failed for Shopify orders: %s", exc)
             raise
+
+    def _persist_line_items(
+        self, orders: list[dict], db_conn: sqlite3.Connection
+    ) -> None:
+        """Persist order line items with attribution inheritance.
+
+        Args:
+            orders: Order nodes from Shopify GraphQL
+            db_conn: SQLite connection
+        """
+        for order in orders:
+            order_id = order["id"]
+            order_created = order["createdAt"]
+
+            cursor = db_conn.execute(
+                """
+                SELECT strategy_tag, attribution_tier, confidence, evidence_json
+                FROM order_attributions
+                WHERE order_id=?
+                """,
+                (order_id,),
+            )
+            order_attr = cursor.fetchone()
+
+            if not order_attr:
+                logger.warning(
+                    "No order attribution found for %s, skipping line items", order_id
+                )
+                continue
+
+            strategy_tag, tier, confidence, evidence_json = order_attr
+            evidence = json.loads(evidence_json)
+            raw_source = evidence.get("source", "unknown")
+
+            line_items = order.get("lineItems", {}).get("edges", [])
+
+            for edge in line_items:
+                node = edge.get("node") or {}
+                variant = node.get("variant")
+
+                if not variant:
+                    logger.warning(
+                        "Line item %s missing variant, skipping", node.get("id")
+                    )
+                    continue
+
+                product = variant.get("product")
+                if not product:
+                    logger.warning(
+                        "Variant %s missing product, skipping", variant.get("id")
+                    )
+                    continue
+
+                product_id = product["id"]
+                variant_id = variant.get("id")
+                quantity = node.get("quantity", 0)
+
+                price_set = node.get("originalTotalSet", {}).get("shopMoney", {})
+                line_revenue = float(price_set.get("amount", 0))
+                currency = price_set.get("currencyCode", "USD")
+
+                db_conn.execute(
+                    """
+                    INSERT INTO order_line_attributions (
+                        order_id, order_created_at,
+                        product_id, variant_id, quantity,
+                        line_revenue, currency,
+                        strategy_tag, attribution_tier, confidence, raw_source
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(order_id, product_id, variant_id)
+                    DO UPDATE SET
+                        line_revenue=excluded.line_revenue,
+                        strategy_tag=excluded.strategy_tag,
+                        attribution_tier=excluded.attribution_tier,
+                        confidence=excluded.confidence,
+                        collected_at=CURRENT_TIMESTAMP
+                    """,
+                    (
+                        order_id,
+                        order_created,
+                        product_id,
+                        variant_id,
+                        quantity,
+                        line_revenue,
+                        currency,
+                        strategy_tag,
+                        tier,
+                        confidence,
+                        raw_source,
+                    ),
+                )
+
+        db_conn.commit()

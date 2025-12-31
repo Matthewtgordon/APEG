@@ -6,6 +6,98 @@
 
 ---
 
+## [2024-12-31] Phase 5: Feedback Loop & Refinement Engine (PARTIAL - ANALYSIS CORE)
+
+### Added - Core Infrastructure
+- `src/apeg_core/feedback/schema.py`: Feedback loop database schema
+  - seo_versions table (Champion/Challenger snapshots with rollback)
+  - feedback_runs table (run tracking and audit)
+  - feedback_actions table (action logging)
+- `src/apeg_core/feedback/analyzer.py`: Decision engine
+  - Strategy-level metrics aggregation
+  - Diagnosis matrix (CTR x ROAS -> action recommendations)
+  - Candidate selection (underperformers + winners)
+  - KPI computation (ROAS, CVR proxy, click proxy)
+- `src/apeg_core/feedback/version_control.py`: SEO version management
+  - Champion/Challenger snapshot persistence
+  - Byte-perfect rollback capability
+  - Evaluation outcome tracking
+  - Diff computation
+- `src/apeg_core/feedback/mapping.py`: Strategy tag mapping resolver
+  - Method A: Explicit APEG tracking (strategy_tag_mappings table)
+  - Method B: Naming convention parsing
+  - Method C: UTM fetch (stub for future)
+  - Confidence scoring
+- `src/apeg_core/feedback/prompts.py`: LLM prompt builders
+  - SEO Challenger generation prompts
+  - Strict JSON schema validation
+  - Character limit enforcement
+  - Prohibited claims checking
+- `scripts/run_feedback_loop.py`: CLI entry point
+  - Analysis mode (candidate identification)
+  - Propose mode (stub - requires LLM integration)
+  - Execute mode (stub - requires Phase 3 API integration)
+  - Evaluate mode (stub - requires outcome tracking)
+
+### Added - Database Schema
+- order_line_attributions (CRITICAL): Product-level attribution
+  - Enables product-level ROAS computation
+  - Inherits attribution from order-level
+  - Line revenue per product/variant
+- strategy_tag_mappings: Meta entity -> strategy_tag mapping
+  - Supports multiple resolution methods
+  - Confidence scoring per mapping
+  - Metadata for debugging
+- seo_versions: Version control for SEO changes
+  - Champion/Challenger snapshot pairs
+  - Decision context (metrics, diagnosis, thresholds)
+  - Phase 3 job tracking
+  - Evaluation windows and outcomes
+- feedback_runs: Run audit trail
+- feedback_actions: Action-level logging
+
+### Added - Configuration
+- `.env.example`: Phase 5 Feedback Loop section
+  - FEEDBACK_ENABLED, FEEDBACK_WINDOW_DAYS
+  - Minimum data thresholds (spend, impressions, clicks, orders)
+  - Diagnosis thresholds (CTR_BAD/GOOD, ROAS_BAD/GOOD)
+  - Safety limits (MAX_ACTIONS_PER_RUN)
+  - Approval workflow config
+  - Decision logging directory
+
+### Features - Diagnosis Matrix
+- CTR Low + ROAS High: Refine ad creative
+- CTR High + ROAS Low: Refine Shopify SEO
+- CTR Low + ROAS Low: Pause strategy
+- CTR High + ROAS High: Scale budget
+- Insufficient Data: No action
+
+### Features - Version Control
+- Champion/Challenger pattern with snapshot pairs
+- Byte-perfect rollback (raw snapshot reuse)
+- Evaluation windows and outcomes (WIN/LOSS/INCONCLUSIVE/PENDING)
+- Status lifecycle: PROPOSED -> APPROVED -> APPLIED -> REVERTED/SUPERSEDED
+
+### Testing
+- Unit tests: Diagnosis matrix logic (3 scenarios) + analyzer baseline
+- Acceptance tests defined: TEST-FEEDBACK-01 through TEST-FEEDBACK-07
+
+### Known Limitations (Phase 5 Partial)
+- LLM integration incomplete (Challenger generation requires Claude API)
+- Phase 3 job emission incomplete (apply/rollback require API integration)
+- strategy_tag_mappings requires population (manual or automated)
+- order_line_attributions requires backfill (rerun Phase 4 collector)
+- Evaluation engine not implemented (outcome tracking future work)
+
+### Blockers Resolved
+- Product-level attribution: order_line_attributions table added
+- Strategy tag mapping: Mapping resolver with multiple methods
+- Line item capture: Shopify GraphQL query updated (requires rerun of Phase 4 collector)
+
+### Evidence Source
+- Phase 5 Technical Specification
+- Diagnosis matrix validated against industry benchmarks (CTR ~1.5%, ROAS ~2-3x)
+
 ## [2024-12-31] Phase 4: Data Collection & Metrics Intelligence
 
 ### Added - Core Infrastructure
