@@ -6,5 +6,9 @@
 tests/integration/*.log
 tests/integration/__pycache__/
 
+# Metrics artifacts (generated)
+data/metrics.db
+data/metrics/raw/
+
 # Python cache
 __pycache__/
