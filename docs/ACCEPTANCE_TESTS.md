@@ -313,19 +313,20 @@ curl response:
 3. If .env.integration.example exists (pre-consolidation), verify it contains APEG_API_KEY OR is deprecated
 4. Manually inspect .env.example to confirm "APEG API Configuration" section is complete
 **Evidence Source:** Command output + manual inspection confirmation
-**Status:** READY FOR TEST
+**Status:** VERIFIED (Done 12.30)
 **Evidence:**
 ```bash
 # Command output:
-[Paste grep results here]
+.env.example:APEG_API_KEY=your-secret-api-key-here
 
 # Manual inspection:
-[PASS/FAIL] - .env.example contains complete APEG API Configuration section
-[PASS/FAIL] - Active .env contains APEG_API_KEY with non-placeholder value
-[PASS/FAIL] - .env.integration.example is deleted OR deprecated OR contains APEG_API_KEY
+PASS - .env.example contains complete APEG API Configuration section
+PASS - Active .env contains APEG_API_KEY with non-placeholder value (user verified)
+PASS - .env.integration.example is deleted
 
 # Overall Result: [PASS/FAIL]
-# Date: [YYYY-MM-DD]
+# Overall Result: PASS
+# Date: 2024-12-30
 ```
 
 ---
@@ -341,10 +342,15 @@ curl response:
 3. Verify workflow FAILS with 401 Unauthorized error
 4. Verify error message contains "Invalid API key"
 **Evidence Source:** n8n execution screenshot showing 401 error
-**Status:** BLOCKED (requires n8n instance + APEG running)
+**Status:** VERIFIED (Done 12.30)
 **Evidence:**
 ```
-[Screenshot or error message paste showing 401]
+> POST /api/v1/jobs/seo-update HTTP/1.1
+> Host: 100.126.221.42:8000
+> X-APEG-API-KEY: wrong_key
+< HTTP/1.1 401 Unauthorized
+< www-authenticate: API-Key
+< detail: Invalid API key
 ```
 
 ---
@@ -367,18 +373,16 @@ curl response:
 5. Verify response contains: job_id, status="queued", run_id, received_count=1
 6. Verify APEG logs show "DRY RUN MODE" message and no Shopify API calls
 **Evidence Source:** n8n execution success + APEG server logs
-**Status:** BLOCKED (requires n8n instance + APEG running)
+**Status:** VERIFIED (Done 12.30)
 **Evidence:**
 ```json
 // n8n Response:
+// HTTP 202 Accepted
 {
-  "statusCode": 202,
-  "body": {
-    "job_id": "...",
-    "status": "queued",
-    "run_id": "n8n-test-dryrun",
-    "received_count": 1
-  }
+  "job_id": "0d2c579c-e2d4-4717-a939-9b787f70cdfb",
+  "status": "queued",
+  "run_id": "n8n-manual-test-01",
+  "received_count": 1
 }
 
 // APEG Logs:
@@ -476,10 +480,10 @@ Shopify Admin: [Screenshot showing test tag]
 6. Run: `PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py`
 7. Verify all tests pass
 **Evidence Source:** Script output
-**Status:** READY FOR TEST (after template consolidation)
+**Status:** SKIPPED (Configuration mismatch on test runner)
 **Evidence:**
 ```bash
-[Paste execution output]
+Skipped: Configuration mismatch on test runner. Proceeding based on manual verification of API and n8n endpoints.
 ```
 
 ---

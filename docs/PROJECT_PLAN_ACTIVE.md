@@ -133,23 +133,23 @@ grep -R "APEG_API_KEY" .env*.example
 - [X] Done 12.30: PYTHONPATH execution documentation
 
 #### Part 2: n8n Integration + Environment Parity (IN PROGRESS)
-- [ ] ToDo: Environment parity enforcement (BLOCKER - must pass before phase complete)
-  - [ ] Consolidate .env.example (single canonical template)
-  - [ ] Deprecate .env.integration.example
-  - [ ] Section 1.8 update (environment governance)
-  - [ ] TEST-ENV-01 execution + PASS evidence
-- [ ] ToDo: n8n workflow configuration
-  - [ ] Create N8N_WORKFLOW_CONFIG.md with corrections
-  - [ ] HTTP Request credential setup (Header Auth within HTTP Request)
-  - [ ] Array typing pattern (products field)
-  - [ ] Docker networking guidance (no localhost assumption)
-- [ ] ToDo: n8n verification tests
-  - [ ] TEST-N8N-01: Auth failure (401) - negative test
-  - [ ] TEST-N8N-02: Dry run (202) - happy path
-  - [ ] TEST-N8N-03: Live execution - background job proof
-- [ ] ToDo: Documentation updates
-  - [ ] API_USAGE.md: APEG_API_KEY clarity + n8n pointer
-  - [ ] Integration test README: template reference updates
+- [X] Done 12.30: Environment parity enforcement (BLOCKER - must pass before phase complete)
+  - [X] Done 12.30: Consolidate .env.example (single canonical template)
+  - [X] Done 12.30: Deprecate .env.integration.example
+  - [X] Done 12.30: Section 1.8 update (environment governance)
+  - [X] Done 12.30: TEST-ENV-01 execution + PASS evidence
+- [X] Done 12.30: n8n workflow configuration
+  - [X] Done 12.30: Create N8N_WORKFLOW_CONFIG.md with corrections
+  - [X] Done 12.30: HTTP Request credential setup (Header Auth within HTTP Request)
+  - [X] Done 12.30: Array typing pattern (products field)
+  - [X] Done 12.30: Docker networking guidance (no localhost assumption)
+- [ ] ToDo: n8n verification tests (remaining)
+  - [X] Done 12.30: TEST-N8N-01: Auth failure (401) - negative test
+  - [X] Done 12.30: TEST-N8N-02: Dry run (202) - happy path
+  - [ ] ToDo: TEST-N8N-03: Live execution - background job proof
+- [X] Done 12.30: Documentation updates
+  - [X] Done 12.30: API_USAGE.md: APEG_API_KEY clarity + n8n pointer
+  - [X] Done 12.30: Integration test README: template reference updates
 
 #### Part 3: Future Enhancements (BACKLOG)
 - [ ] Future: Job status callback endpoint (webhook for completion)
