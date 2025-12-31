@@ -123,7 +123,7 @@ grep -R "APEG_API_KEY" .env*.example
 - [X] Done 12.30: Safe-write pipeline integration (Phase 2 client)
 - [X] Done 12.30: aiohttp timeout configuration (30s connect, 300s total)
 - [X] Done 12.30: PYTHONPATH execution documentation
-- [ ] ToDo: Environment parity check (APEG_API_KEY in all templates) - GATE
+- [X] Done 12.30: Environment parity check (APEG_API_KEY in all templates) - GATE
 - [ ] ToDo: n8n workflow configuration (HTTP Request node + credential setup)
 - [ ] ToDo: n8n verification tests (TEST 0-3 execution + evidence)
 - [ ] ToDo: Integration architecture spec update (Section 1.8)

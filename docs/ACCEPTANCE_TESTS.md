@@ -256,7 +256,12 @@
 3. Measure response time (should be <100ms)
 4. Verify response contains: job_id, status="queued", run_id, received_count
 **Evidence Source:** curl timing + response body
-**Status:** READY FOR TEST
+**Status:** VERIFIED (Done 12.30)
+**Evidence:**
+```
+curl response:
+{"job_id":"085a13b1-d44e-4ca2-b19b-e32accb1dde6","status":"queued","run_id":"manual-test-cli-01","received_count":1}
+```
 
 ### TEST-API-04: Background Task Execution
 **Requirement:** Background task MUST execute safe-write pipeline asynchronously
@@ -307,10 +312,10 @@
 2. Verify output shows at least one match per template file
 3. Manually inspect each template to confirm APEG API Configuration section exists
 **Evidence Source:** Command output + manual inspection confirmation
-**Status:** READY FOR TEST
+**Status:** VERIFIED (Done 12.30)
 **Evidence:**
 ```
-[Paste grep output here]
+.env.example:APEG_API_KEY=your-secret-api-key-here
 ```
 
 ### TEST-N8N-01: Network + Auth Reachability (Negative Test)
