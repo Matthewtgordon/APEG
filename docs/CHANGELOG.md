@@ -6,6 +6,47 @@
 
 ---
 
+## [2024-12-30] Phase 3 Part 2: n8n Configuration + Environment Parity
+
+### Added
+- `docs/N8N_WORKFLOW_CONFIG.md`: Complete n8n workflow configuration guide
+  - HTTP Request node setup (URL, headers, body schema)
+  - Credential management (Header Auth pattern)
+  - End-to-end verification tests (TEST 0-3)
+  - Troubleshooting guide
+- Environment Parity Gate: Mandatory phase transition blocker in PROJECT_PLAN_ACTIVE.md
+- ACCEPTANCE_TESTS.md: n8n verification tests (TEST-N8N-01 through TEST-N8N-03)
+- ACCEPTANCE_TESTS.md: Environment parity check (TEST-ENV-01)
+
+### Changed
+- `docs/integration-architecture-spec-v1.4.1.md` Section 1.8: FULL REPLACEMENT
+  - Added APEG_API_KEY to canonical config surface area
+  - Enforced environment template parity rule
+  - Added phase transition blocker for parity check
+  - APEG_ENV is canonical; ENVIRONMENT retained as legacy alias
+- `.env.example`: Added APEG API Configuration + Integration Testing sections
+- `.env.integration.example`: Consolidated into `.env.example`
+- `docs/API_USAGE.md`: Added APEG_API_KEY definition and security guidance
+- `tests/integration/README.md`: Updated to reference `.env.example` as canonical template
+- `docs/PROJECT_PLAN_ACTIVE.md`: Added Phase Transition Gate (Environment Parity Check)
+- `docs/PROJECT_PLAN_ACTIVE.md`: Updated Phase 3 completion criteria
+
+### Security
+- APEG_API_KEY generation guidance: `openssl rand -hex 32`
+- n8n credential encryption key requirement documented
+- Explicit warning against reusing Shopify tokens as API keys
+
+### Phase 3 Workflow
+- n8n -> APEG FastAPI (202 immediate response)
+- Header Auth credential (no hardcoded keys)
+- Environment variable parity enforced across all templates
+- Dry run mode testing before live writes
+
+### Evidence Source
+- Phase 3 Part 2 Technical Implementation Brief
+- n8n HTTP Request node documentation
+- Environment management parity audit findings
+
 ## [2024-12-30] Phase 3: n8n API Layer (REVISED)
 
 ### Added

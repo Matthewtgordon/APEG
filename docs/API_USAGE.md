@@ -17,6 +17,17 @@ All endpoints require API key authentication via header:
 X-APEG-API-KEY: your-secret-api-key
 ```
 
+**What is APEG_API_KEY?**
+
+`APEG_API_KEY` is a user-defined secret string configured on the APEG server (environment variable `APEG_API_KEY`). Treat it like a password.
+
+- **Format:** 32+ character random string (recommended: hex-encoded)
+- **Generation:** `openssl rand -hex 32`
+- **Example:** `apeg_live_3f6b9c2a8d1e4c7f9a0b1c2d3e4f5a6b`
+- **Security:** Do NOT reuse Shopify access tokens. Do NOT commit to repo.
+
+The APEG FastAPI server validates incoming requests by comparing the `X-APEG-API-KEY` header value against the `APEG_API_KEY` environment variable. Requests with missing or mismatched keys receive 401 Unauthorized.
+
 Missing or invalid API keys return 401 Unauthorized.
 
 ## Endpoints

@@ -7,6 +7,26 @@
 
 ---
 ## RETAIN FORMAT DO NOT RESTRUCTURE
+## PHASE TRANSITION GATE (MANDATORY)
+
+**Environment Parity Check:** PASS required before marking any phase complete.
+
+**Check:** All `.env*.example` templates contain the full 'APEG API Configuration' variable set (including `APEG_API_KEY`).
+
+**Execution:**
+```bash
+# Manual verification (minimum)
+grep -R "APEG_API_KEY" .env*.example
+
+# Expected output: At least one match per template file
+# .env.example:N:APEG_API_KEY=...
+```
+
+**Evidence:** Paste command output + confirmation of PASS into ACCEPTANCE_TESTS.md
+
+**Status:** BLOCKING - Phase 3 cannot be marked complete until PASS recorded
+
+---
 ## PHASE 0 — CONFIG + CUTOVER READINESS ⬅️ ACTIVE
 
 **Spec Anchors:** Section 1.8, Appendix F, Security section
@@ -103,9 +123,16 @@
 - [X] Done 12.30: Safe-write pipeline integration (Phase 2 client)
 - [X] Done 12.30: aiohttp timeout configuration (30s connect, 300s total)
 - [X] Done 12.30: PYTHONPATH execution documentation
-- [ ] ToDo: Verify Phase 2 client method names alignment
+- [X] Done 12.30: Environment parity check (APEG_API_KEY in all templates) - GATE
 - [ ] ToDo: n8n workflow configuration (HTTP Request node + credential setup)
+- [ ] ToDo: n8n verification tests (TEST 0-3 execution + evidence)
+- [ ] ToDo: Integration architecture spec update (Section 1.8)
 - [ ] ToDo: Job status callback endpoint (optional: webhook for completion)
+
+**Phase 3 Completion Criteria:**
+- All tests in ACCEPTANCE_TESTS.md (TEST-API-01 through TEST-N8N-03) recorded as PASS
+- Environment Parity Check PASS evidence recorded
+- n8n workflow executes successfully (TEST 1 minimum)
 
 **Acceptance Tests:**
 - [ ] ToDo: Workflow run in DEMO produces correct outputs
