@@ -2,9 +2,95 @@
 # Spec Fixes + Test Evidence Log
 
 **Source of Truth:** integration-architecture-spec-v1.4.md  
-**Last Updated:** 2024-12-30
+**Last Updated:** 2024-12-31
 
 ---
+
+## [2024-12-31] Phase 4: Data Collection & Metrics Intelligence
+
+### Added - Core Infrastructure
+- `src/apeg_core/metrics/schema.py`: SQLite schema with WAL mode
+  - metrics_meta_daily table (Meta Ads campaign + ad granularity)
+  - order_attributions table (Shopify orders with attribution)
+  - collector_state table (idempotency tracking)
+  - Indexes for common query patterns
+- `src/apeg_core/metrics/attribution.py`: Waterfall attribution algorithm
+  - Tier 1: customerJourneySummary.utmParameters (Shopify native)
+  - Tier 2: landingPage URL parsing
+  - Tier 3: referrerUrl URL parsing
+  - Strategy tag matching (exact, substring, slug normalization)
+- `src/apeg_core/metrics/meta_collector.py`: Async Meta Marketing API collector
+  - Campaign and ad-level insights
+  - Rate limiting with semaphore (5 concurrent requests)
+  - Pagination handling
+  - Fallback for outbound_clicks from actions array
+- `src/apeg_core/metrics/shopify_collector.py`: Async Shopify orders collector
+  - GraphQL query with customerJourneySummary
+  - Attribution waterfall application
+  - Strategy tag matching integration
+- `src/apeg_core/metrics/collector.py`: Orchestrator service
+  - Daily batch collection coordinator
+  - Idempotency via collector_state table
+  - Backfill gap detection (last 3 days)
+  - Timezone-aware \"yesterday\" calculation
+- `scripts/run_metrics_collector.py`: CLI entry point
+  - Single date collection
+  - Date range backfill
+  - Verbose logging option
+
+### Added - Configuration
+- `.env.example`: Phase 4 Metrics Collection section
+  - METRICS_DB_PATH, METRICS_RAW_DIR
+  - META_ACCESS_TOKEN, META_AD_ACCOUNT_ID
+  - STRATEGY_TAG_CATALOG path
+  - METRICS_TIMEZONE, METRICS_COLLECTION_TIME
+  - METRICS_BACKFILL_DAYS
+- `data/metrics/strategy_tags.json`: Strategy tag catalog template
+  - Birthstone campaigns (January-December)
+  - Seasonal campaigns (holiday_gifts, artisan_collection)
+  - Test tags (apeg_seo_test, apeg_phase3_test)
+
+### Added - Testing
+- `tests/unit/test_attribution.py`: Comprehensive attribution logic tests
+  - URL parsing with/without UTM parameters
+  - Tier 1/2/3/0 attribution selection
+  - Strategy tag matching (exact, substring, slug)
+  - Evidence JSON structure validation
+- `tests/smoke/test_meta_api.py`: Meta API field validation (TEST REQUIRED)
+  - Validates spend, impressions, ctr, cpc fields
+  - Checks outbound_clicks (direct or actions array)
+  - Requires valid Meta credentials
+- `tests/smoke/test_shopify_attribution.py`: Shopify attribution validation
+  - Validates customerJourneySummary structure
+  - Checks lastVisit/firstVisit UTM fields
+  - Edge case tolerance for null attribution
+
+### Features
+- Idempotent Daily Ingestion: Safe to re-run for same date window
+- Dual Persistence: SQLite (queryable) + JSONL (immutable audit)
+- Deterministic Attribution: 3-tier waterfall with confidence scoring
+- Strategy Tag Linking: utm_campaign -> strategy_tag matching
+- Backfill Support: Auto-detect and fill gaps on startup
+- Credential Safety: No secrets in logs (tokens redacted)
+
+### Data Flow
+1. Determine target date (yesterday in account timezone)
+2. Check collector_state for idempotency
+3. Meta: Fetch campaign + ad insights -> SQLite + JSONL
+4. Shopify: Fetch orders -> Apply attribution -> SQLite + JSONL
+5. Record success in collector_state
+
+### Known Limitations (Documented)
+- Meta API field validation is TEST REQUIRED (official docs unavailable due to 429)
+- Shopify UTM completeness varies (known edge cases with null attribution)
+- Single writer pattern (one async task writes to SQLite)
+- No automatic retry on failure (manual resubmission required)
+- Strategy tag catalog must exist before collector runs
+
+### Evidence Source
+- Phase 4 Technical Implementation Brief
+- Shopify customerJourneySummary documentation (verified)
+- Meta Marketing API field references (third-party, requires smoke test)
 
 ## [2024-12-30] Phase 3 Part 2: n8n Configuration + Environment Parity (REVISED)
 

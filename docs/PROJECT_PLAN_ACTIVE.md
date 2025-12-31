@@ -168,20 +168,49 @@ grep -R "APEG_API_KEY" .env*.example
 
 ---
 
-## PHASE 4 — META ADS MINIMUM DEPLOYMENT
+## PHASE 4 — DATA COLLECTION & METRICS INTELLIGENCE
 
-**Spec Anchors:** Section 6.12, Meta config
+### PHASE 4: Data Collection & Metrics Intelligence (IN PROGRESS)
 
-| Deliverable | Status | Spec Section |
-|-------------|--------|--------------|
-| Meta connector (token debug, account read) | [ ] ToDo: | 6.12 |
-| PAUSED campaign create path | [ ] ToDo: | 6.12 |
-| Rate limit + error code handling | [ ] ToDo: | 6.11 |
+#### Part 1: Core Infrastructure (COMPLETE)
+- [X] Done 12.31: SQLite schema (metrics_meta_daily, order_attributions, collector_state)
+- [X] Done 12.31: Attribution logic (3-tier waterfall algorithm)
+- [X] Done 12.31: Meta Insights collector (async, rate-limited)
+- [X] Done 12.31: Shopify Orders collector (async, GraphQL)
+- [X] Done 12.31: Orchestrator service (daily batch coordinator)
+- [X] Done 12.31: Strategy tag catalog template
+- [X] Done 12.31: CLI entry point (run_metrics_collector.py)
 
-**Acceptance Tests:**
-- [ ] ToDo: Token debug PASS
-- [ ] ToDo: Ad account read PASS
-- [ ] ToDo: Create PAUSED campaign (optional)
+#### Part 2: Validation & Testing (BLOCKED - REQUIRES CREDENTIALS)
+- [ ] ToDo: Meta API smoke test execution (TEST-META-01)
+  - Validate outbound_clicks field availability
+  - Confirm spend/impressions/ctr/cpc fields
+  - Record evidence in ACCEPTANCE_TESTS.md
+- [ ] ToDo: Shopify attribution smoke test (TEST-SHOPIFY-01)
+  - Validate customerJourneySummary fields
+  - Confirm UTM parameters structure
+  - Record edge case behavior
+- [ ] ToDo: SQLite idempotency test (TEST-COLLECTOR-01)
+  - Run collector twice for same date
+  - Verify no duplicates, stable row counts
+  - Confirm collector_state behavior
+- [ ] ToDo: End-to-end collection test (TEST-COLLECTOR-02)
+  - Full daily collection (Meta + Shopify)
+  - Verify JSONL + SQLite writes
+  - Validate attribution tier distribution
+
+#### Part 3: Production Deployment (BACKLOG)
+- [ ] Future: Scheduler implementation (cron/systemd)
+- [ ] Future: Meta ad account timezone API retrieval
+- [ ] Future: Webhook notifications on collection completion
+- [ ] Future: Metrics dashboard (query SQLite for insights)
+
+**Phase 4 Completion Criteria:**
+1. All smoke tests executed with PASS (TEST-META-01, TEST-SHOPIFY-01)
+2. Idempotency test PASS (TEST-COLLECTOR-01)
+3. End-to-end collection test PASS (TEST-COLLECTOR-02)
+4. Strategy tag catalog populated with production campaigns
+5. Evidence recorded in ACCEPTANCE_TESTS.md for all tests
 
 ---
 
