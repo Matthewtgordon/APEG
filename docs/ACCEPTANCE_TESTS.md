@@ -904,6 +904,75 @@ PYTHONPATH=. python3 scripts/run_metrics_collector.py --date 2025-12-30
 
 ---
 
+## PHASE 5 — Feedback Loop & Refinement Engine
+
+### TEST-FEEDBACK-01: Propose/Execute/Evaluate Helpers (Unit)
+**Requirement:** Helper logic supports proposal selection, update spec creation, and outcome evaluation.
+**Test Method:** `PYTHONPATH=. pytest tests/unit/test_feedback_loop_helpers.py -v`
+**Evidence Source:** Unit test output
+**Status:** PASS (2026-01-01 10:02Z)
+**Evidence:**
+```
+tests/unit/test_feedback_loop_helpers.py::test_select_proposal_targets_uses_top_revenue_per_strategy PASSED
+tests/unit/test_feedback_loop_helpers.py::test_build_challenger_snapshot_ignores_unsupported_fields PASSED
+tests/unit/test_feedback_loop_helpers.py::test_build_product_update_spec_adds_only_new_tags PASSED
+tests/unit/test_feedback_loop_helpers.py::test_evaluate_outcome_handles_win_loss_inconclusive PASSED
+```
+
+### TEST-FEEDBACK-02: Propose Mode (LLM Challenger Generation)
+**Requirement:** `run_feedback_loop.py --mode propose` creates seo_versions proposals.
+**Test Method:** `PYTHONPATH=. python scripts/run_feedback_loop.py --mode propose -v`
+**Evidence Source:** CLI output + sqlite rows
+**Status:** PASS (seeded data + stub LLM, 2026-01-01 10:02Z)
+**Evidence:**
+```
+2026-01-01 10:01:36 [INFO] src.apeg_core.feedback.version_control: Created SEO version proposal: 1 for gid://shopify/Product/seed_blue_ring_traffic
+2026-01-01 10:01:36 [INFO] __main__: Propose mode complete: 1 proposals created
+```
+
+### TEST-FEEDBACK-03: Execute Mode (Phase 3 Job Emission)
+**Requirement:** Approved proposals submit Phase 3 jobs and record job IDs.
+**Test Method:** `PYTHONPATH=. python scripts/run_feedback_loop.py --mode execute -v`
+**Evidence Source:** CLI output + Phase 3 API response
+**Status:** BLOCKED (Phase 3 API unreachable in sandbox)
+**Evidence:**
+```
+2026-01-01 10:02:28 [ERROR] __main__: Phase 3 API request failed: Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]
+2026-01-01 10:02:28 [INFO] __main__: Execute mode complete: 0 proposals applied
+```
+
+### TEST-FEEDBACK-04: Evaluate Mode (Outcome Recording)
+**Requirement:** Applied versions update outcomes after evaluation window.
+**Test Method:** `PYTHONPATH=. python scripts/run_feedback_loop.py --mode evaluate -v`
+**Evidence Source:** CLI output + seo_versions outcome fields
+**Status:** BLOCKED (no applied versions available)
+**Evidence:**
+```
+2026-01-01 10:02:35 [INFO] __main__: No versions ready for evaluation
+```
+
+### TEST-FEEDBACK-05: Full Test Suite (Production Gate)
+**Requirement:** Full pytest suite runs successfully.
+**Test Method:** `PYTHONPATH=. pytest -v`
+**Evidence Source:** pytest output
+**Status:** PASS (2026-01-01 10:14Z)
+**Evidence:**
+```
+======================== 56 passed, 3 skipped in 1.76s =========================
+```
+
+### TEST-FEEDBACK-06: Integration Suite Presence
+**Requirement:** Integration tests exist and are runnable.
+**Test Method:** `PYTHONPATH=. pytest tests/integration/ -v`
+**Evidence Source:** pytest output
+**Status:** SKIPPED (credentials missing)
+**Evidence:**
+```
+tests/integration/test_feedback_loop_propose_integration.py::test_propose_mode_creates_version SKIPPED
+```
+
+---
+
 ## LIVE SWAP (Appendix F)
 
 | Test | Status | Blocker |
