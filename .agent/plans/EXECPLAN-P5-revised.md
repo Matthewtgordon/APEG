@@ -3,7 +3,7 @@
 **Phase:** 5
 **Created:** 2026-01-01
 **Author:** Codex
-**Status:** IN_PROGRESS
+**Status:** BLOCKED
 
 This ExecPlan is a living document. The sections Progress, Surprises & Discoveries,
 Decision Log, and Outcomes & Retrospective MUST be updated as work proceeds.
@@ -30,11 +30,22 @@ and Shopify bulk mutation semantics already verified in Phase 3.
 - [x] (2026-01-01 07:54Z) Verify baseline tests (Step 1: 44 passed)
 - [x] (2026-01-01 07:54Z) Add strategy_tag mapping enrichment for Meta metrics (module + run_analysis hook)
 - [x] (2026-01-01 07:57Z) Re-ran unit tests after mapping enrichment (44 passed)
-- [ ] Implement propose mode (LLM challenger generation + seo_versions proposals)
-- [ ] Implement execute mode (Phase 3 API job emission with batching)
-- [ ] Implement evaluate mode (outcome recording based on metrics windows)
-- [ ] Add unit tests for mapping/propose/execute/evaluate
-- [ ] Update ACCEPTANCE_TESTS.md and PROJECT_PLAN_ACTIVE.md with evidence
+- [x] (2026-01-01 09:19Z) Implement propose mode (LLM challenger generation + seo_versions proposals; runtime requires FEEDBACK_LLM_API_KEY)
+- [x] (2026-01-01 09:19Z) Implement execute mode (Phase 3 API job emission with batching; runtime requires APEG_API_KEY + APEG_API_BASE_URL)
+- [x] (2026-01-01 09:19Z) Implement evaluate mode (outcome recording based on metrics windows)
+- [x] (2026-01-01 09:19Z) Add unit tests for propose/execute/evaluate helpers (48 passed)
+- [x] (2026-01-01 09:19Z) Update ACCEPTANCE_TESTS.md and PROJECT_PLAN_ACTIVE.md with evidence
+- [x] (2026-01-01 09:56Z) Fix propose/evaluate runtime issues (missing ProductMetrics import, timezone-safe timestamps)
+- [x] (2026-01-01 09:56Z) Run propose/execute/evaluate modes with credentials (no candidates/proposals available)
+- [x] (2026-01-01 09:56Z) Re-run unit tests after fixes (48 passed)
+- [x] (2026-01-01 10:02Z) Seed sample metrics/orders data (seed_dummy_data.py; placeholder product IDs)
+- [x] (2026-01-01 10:02Z) Propose mode runs with seeded data (1 proposal created using stub LLM + dummy snapshot)
+- [x] (2026-01-01 10:02Z) Execute mode attempted with dummy Phase 3 endpoint (blocked: localhost API unavailable)
+- [x] (2026-01-01 10:02Z) Evaluate mode re-run (no applied versions yet)
+- [x] (2026-01-01 10:08Z) Run full pytest suite (56 passed, 2 skipped)
+- [x] (2026-01-01 10:08Z) Attempt integration suite (no tests collected)
+- [x] (2026-01-01 10:14Z) Add integration test for propose mode (collected; skipped without credentials)
+- [x] (2026-01-01 10:14Z) Re-run full pytest suite after integration test (56 passed, 3 skipped)
 
 ---
 
@@ -55,6 +66,22 @@ and Shopify bulk mutation semantics already verified in Phase 3.
 - **Observation:** Phase 3 API returns only `job_id` and lacks a status endpoint.
   **Evidence:** `/api/v1/jobs/seo-update` response model contains job_id/status/run_id; no GET endpoint exists.
   **Resolution:** Treat job_id as write-trace only; evaluate outcome by metrics window, not API status.
+
+- **Observation:** Product-level attribution lacks CTR/CPC fields needed for spec's evaluation math.
+  **Evidence:** `order_line_attributions` only stores revenue, units, and strategy_tag; no click or CTR metrics.
+  **Resolution:** Use ROAS-based outcome evaluation for now; document threshold choices in Decision Log.
+
+- **Observation:** Propose/execute/evaluate runs completed but returned no eligible targets/proposals in sandbox data.
+  **Evidence:** `run_feedback_loop.py --mode propose` logged "No eligible targets for propose mode"; execute/evaluate logged "No proposals ready" / "No versions ready".
+  **Resolution:** Requires real metrics data and approved proposals to exercise full flow.
+
+- **Observation:** Execute mode cannot reach Phase 3 API in sandbox (localhost blocked).
+  **Evidence:** `Phase 3 API request failed: Cannot connect to host localhost:8000`
+  **Resolution:** Use remote APEG_API_BASE_URL in real environment or run uvicorn with accessible host.
+
+- **Observation:** Integration propose test collected but skipped without credentials.
+  **Evidence:** `tests/integration/test_feedback_loop_propose_integration.py` skipped due to missing env vars.
+  **Resolution:** Provide Shopify + Anthropic credentials to run integration test end-to-end.
 
 ---
 
@@ -80,11 +107,23 @@ and Shopify bulk mutation semantics already verified in Phase 3.
   **Alternatives Considered:** Add a new job tracking table (rejected: schema change needs approval).
   **Date:** 2026-01-01
 
+- **Decision:** Evaluate challenger outcomes using product-level ROAS changes and order volume thresholds.
+  **Rationale:** Product-level CTR/CPC are not available in current schema; ROAS and orders are the most reliable metrics available without schema changes.
+  **Alternatives Considered:** Derive CTR from strategy-level metrics (rejected: would not isolate product impact).
+  **Date:** 2026-01-01
+
+- **Decision:** Allow optional stub LLM and dummy product snapshots for seeded sample data runs.
+  **Rationale:** Enables propose-mode validation in environments without Shopify or Anthropic credentials.
+  **Alternatives Considered:** Require full credentials before running (rejected: blocks local validation).
+  **Date:** 2026-01-01
+
 ---
 
 ## Outcomes & Retrospective
 
-(Update at completion)
+- What worked well? Propose/execute/evaluate logic is now wired with helper functions and unit coverage; Phase 3 job batching aligns with Redis lock constraints.
+- What would you do differently? Add CTR/CPC to product-level attribution so evaluation can match spec formulas.
+- What should the next phase know? Runtime validation of propose/execute/evaluate is blocked until Shopify/Anthropic credentials and Phase 3 API connectivity are available.
 
 ---
 
