@@ -313,8 +313,8 @@ curl response:
 3. If .env.integration.example exists (pre-consolidation), verify it contains APEG_API_KEY OR is deprecated
 4. Manually inspect .env.example to confirm "APEG API Configuration" section is complete
 **Evidence Source:** Command output + manual inspection confirmation
-**Status:** VERIFIED (Done 12.30)
-**Evidence:**
+**Status:** VERIFIED (2026-01-01)
+**Evidence (2024-12-30):**
 ```bash
 # Command output:
 .env.example:APEG_API_KEY=your-secret-api-key-here
@@ -328,6 +328,22 @@ PASS - .env.integration.example is deleted
 # Overall Result: PASS
 # Date: 2024-12-30
 ```
+
+**Evidence (2026-01-01 05:58Z):**
+- .env.example keys: 30
+- .env keys: 13
+- Missing keys: FEEDBACK_APPROVAL_MODE, FEEDBACK_BASELINE_DAYS, FEEDBACK_CTR_BAD, FEEDBACK_CTR_GOOD, FEEDBACK_DECISION_LOG_DIR, FEEDBACK_ENABLED, FEEDBACK_MAX_ACTIONS_PER_RUN, FEEDBACK_MIN_CLICKS_PROXY, FEEDBACK_MIN_IMPRESSIONS, FEEDBACK_MIN_ORDERS, FEEDBACK_MIN_SPEND_USD, FEEDBACK_REQUIRE_APPROVAL, FEEDBACK_ROAS_BAD, FEEDBACK_ROAS_GOOD, FEEDBACK_WINDOW_DAYS, METRICS_BACKFILL_DAYS, METRICS_COLLECTION_TIME, METRICS_DB_PATH, METRICS_RAW_DIR, METRICS_TIMEZONE, STRATEGY_TAG_CATALOG
+- Extra keys: APEG_API_BASE_URL, APEG_API_HOST, DEMO_STORE_DOMAIN_ALLOWLIST, META_APP_ID
+- APEG_API_KEY: VALID
+- Overall Result: FAIL
+
+**Evidence (2026-01-01 06:44Z):**
+- .env.example keys: 30
+- .env keys: 37
+- Missing keys: none
+- Extra keys: APEG_API_BASE_URL, APEG_API_HOST, APEG_API_PORT, DEMO_STORE_DOMAIN_ALLOWLIST, META_APP_ID, TEST_PRODUCT_ID, TEST_TAG_PREFIX
+- APEG_API_KEY: VALID
+- Overall Result: PASS
 
 ---
 
@@ -458,13 +474,43 @@ docker exec -it n8n curl http://localhost:8000/docs
    - Completion message
 5. Verify tag appears on product in Shopify admin
 **Evidence Source:** n8n timing + APEG logs + Shopify admin screenshot
-**Status:** BLOCKED (requires DEMO store credentials)
-**Evidence:**
+**Status:** VERIFIED (2026-01-01)
+**Evidence (2026-01-01 07:02Z; failed due to Redis):**
+```json
+// n8n response:
+{
+  "job_id": "05654559-5ff3-4daa-a8d0-c01aaed11336",
+  "status": "queued",
+  "run_id": "n8n-manual-test-01",
+  "received_count": 1
+}
 ```
-Execution time: Xs
+```text
 APEG Logs:
-[Paste bulk operation logs]
-Shopify Admin: [Screenshot showing test tag]
+2026-01-01 07:02:32,280 [INFO] src.apeg_core.api.routes: Queued SEO update job: job_id=05654559-5ff3-4daa-a8d0-c01aaed11336, run_id=n8n-manual-test-01, products_count=1
+2026-01-01 07:02:32,282 [INFO] src.apeg_core.api.routes: Starting SEO update job: job_id=05654559-5ff3-4daa-a8d0-c01aaed11336, run_id=n8n-manual-test-01, products=1, dry_run=False
+2026-01-01 07:02:32,661 [ERROR] src.apeg_core.api.routes: Job 05654559-5ff3-4daa-a8d0-c01aaed11336 (run_id=n8n-manual-test-01) failed with exception: Error 111 connecting to localhost:6379. Connection refused.
+```
+
+**Evidence (2026-01-01 07:17Z; success after Redis install):**
+```json
+// n8n response:
+[
+  {
+    "job_id": "c7dd52cd-54e5-402e-8b81-d9d0275405f2",
+    "status": "queued",
+    "run_id": "n8n-manual-test-01",
+    "received_count": 1
+  }
+]
+```
+```text
+APEG Logs:
+2026-01-01 07:17:43,259 [INFO] src.apeg_core.api.routes: Queued SEO update job: job_id=c7dd52cd-54e5-402e-8b81-d9d0275405f2, run_id=n8n-manual-test-01, products_count=1
+2026-01-01 07:17:43,260 [INFO] src.apeg_core.api.routes: Starting SEO update job: job_id=c7dd52cd-54e5-402e-8b81-d9d0275405f2, run_id=n8n-manual-test-01, products=1, dry_run=False
+2026-01-01 07:17:43,272 [INFO] src.apeg_core.shopify.bulk_mutation_client: Acquired mutation lock: run_id=n8n-manual-test-01
+2026-01-01 07:17:46,836 [INFO] src.apeg_core.shopify.bulk_mutation_client: Submitted bulk mutation: op_id=gid://shopify/BulkOperation/4412960243814, run_id=n8n-manual-test-01, updates=1
+2026-01-01 07:17:52,096 [INFO] src.apeg_core.api.routes: Job c7dd52cd-54e5-402e-8b81-d9d0275405f2 completed successfully: bulk_op=gid://shopify/BulkOperation/4412960243814, objects=1
 ```
 
 ---
@@ -509,11 +555,18 @@ Skipped: Configuration mismatch on test runner. Proceeding based on manual verif
 4. Verify fields present: spend, impressions, ctr, cpc
 5. Verify outbound_clicks present (direct field OR actions array)
 **Evidence Source:** pytest output + field list
-**Status:** SKIPPED (no data returned for test date)
-**Evidence:**
+**Status:** SKIPPED (2026-01-01; no data returned for test date)
+**Evidence (prior run):**
 ```bash
 PYTHONPATH=. pytest tests/smoke/test_meta_api.py -v
 tests/smoke/test_meta_api.py::test_meta_insights_fields SKIPPED (No data returned for test date (no ad spend))
+```
+
+**Evidence (2026-01-01 06:44Z):**
+```bash
+PYTHONPATH=. ./venv/bin/python -m pytest tests/smoke/test_meta_api.py -v -rs
+tests/smoke/test_meta_api.py::test_meta_insights_fields SKIPPED (No data returned for test date (no ad spend))
+SKIPPED [1] tests/smoke/test_meta_api.py:57: No data returned for test date (no ad spend)
 ```
 
 ---
@@ -528,11 +581,18 @@ tests/smoke/test_meta_api.py::test_meta_insights_fields SKIPPED (No data returne
 5. Verify utmParameters fields: campaign, source, medium, term, content
 6. Document edge cases (null attribution tolerance)
 **Evidence Source:** pytest output + sample order structure
-**Status:** SKIPPED (no orders found in test date range)
-**Evidence:**
+**Status:** SKIPPED (2026-01-01; no orders found in test date range)
+**Evidence (prior run):**
 ```bash
 PYTHONPATH=. pytest tests/smoke/test_shopify_attribution.py -v
 tests/smoke/test_shopify_attribution.py::test_shopify_attribution_fields SKIPPED (No orders found in test date range)
+```
+
+**Evidence (2026-01-01 06:44Z):**
+```bash
+PYTHONPATH=. ./venv/bin/python -m pytest tests/smoke/test_shopify_attribution.py -v -rs
+tests/smoke/test_shopify_attribution.py::test_shopify_attribution_fields SKIPPED (No orders found in test date range)
+SKIPPED [1] tests/smoke/test_shopify_attribution.py:107: No orders found in test date range
 ```
 
 ---
@@ -555,17 +615,34 @@ tests/smoke/test_shopify_attribution.py::test_shopify_attribution_fields SKIPPED
 5. Verify row counts UNCHANGED
 6. Verify collector_state shows single success row per source
 **Evidence Source:** SQL query results before/after re-run
-**Status:** BLOCKED (requires credentials + data)
-**Evidence:**
-```sql
--- First run:
-[Row count results]
+**Status:** VERIFIED (2026-01-01)
+**Evidence (2026-01-01 06:51Z):**
+```bash
+PYTHONPATH=. ./venv/bin/python scripts/run_metrics_collector.py --date 2025-12-30 -v
+2026-01-01 06:51:07 [INFO] src.apeg_core.metrics.collector: Starting collection for 2025-12-30
+2026-01-01 06:51:08 [INFO] src.apeg_core.metrics.collector: Collection complete for 2025-12-30
 
--- Second run:
-[Row count results - should match]
+sqlite3 data/metrics.db "SELECT COUNT(*) FROM metrics_meta_daily WHERE metric_date='2025-12-30';"
+3
+sqlite3 data/metrics.db "SELECT COUNT(*) FROM order_attributions WHERE created_at LIKE '2025-12-30%';"
+4
+sqlite3 data/metrics.db "SELECT metric_date, source_name, status FROM collector_state WHERE metric_date='2025-12-30' ORDER BY source_name;"
+2025-12-30|meta|success
+2025-12-30|shopify|success
 
--- collector_state:
-[State table showing single success row]
+# Re-run (idempotency):
+PYTHONPATH=. ./venv/bin/python scripts/run_metrics_collector.py --date 2025-12-30 -v
+2026-01-01 06:51:37 [INFO] src.apeg_core.metrics.collector: Skipping Meta collection for 2025-12-30 (already collected)
+2026-01-01 06:51:37 [INFO] src.apeg_core.metrics.collector: Skipping Shopify collection for 2025-12-30 (already collected)
+2026-01-01 06:51:37 [INFO] src.apeg_core.metrics.collector: Collection complete for 2025-12-30
+
+sqlite3 data/metrics.db "SELECT COUNT(*) FROM metrics_meta_daily WHERE metric_date='2025-12-30';"
+3
+sqlite3 data/metrics.db "SELECT COUNT(*) FROM order_attributions WHERE created_at LIKE '2025-12-30%';"
+4
+sqlite3 data/metrics.db "SELECT metric_date, source_name, status FROM collector_state WHERE metric_date='2025-12-30' ORDER BY source_name;"
+2025-12-30|meta|success
+2025-12-30|shopify|success
 ```
 
 ---

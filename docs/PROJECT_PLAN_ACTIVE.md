@@ -146,7 +146,7 @@ grep -R "APEG_API_KEY" .env*.example
 - [ ] ToDo: n8n verification tests (remaining)
   - [X] Done 12.30: TEST-N8N-01: Auth failure (401) - negative test
   - [X] Done 12.30: TEST-N8N-02: Dry run (202) - happy path
-  - [ ] ToDo: TEST-N8N-03: Live execution - background job proof
+  - [X] Done 01.01: TEST-N8N-03: Live execution - background job proof (bulk op gid://shopify/BulkOperation/4412960243814)
 - [X] Done 12.30: Documentation updates
   - [X] Done 12.30: API_USAGE.md: APEG_API_KEY clarity + n8n pointer
   - [X] Done 12.30: Integration test README: template reference updates
@@ -163,7 +163,7 @@ grep -R "APEG_API_KEY" .env*.example
 4. Evidence recorded in ACCEPTANCE_TESTS.md for all verification tests
 
 **Acceptance Tests:**
-- [ ] ToDo: Workflow run in DEMO produces correct outputs
+- [X] Done 01.01: Workflow run in DEMO produces correct outputs (n8n-manual-test-01)
 - [ ] ToDo: Post-swap: LIVE credential in execution log
 
 ---
@@ -182,15 +182,15 @@ grep -R "APEG_API_KEY" .env*.example
 - [X] Done 12.31: CLI entry point (run_metrics_collector.py)
 
 #### Part 2: Validation & Testing (BLOCKED - REQUIRES CREDENTIALS)
-- [ ] ToDo: Meta API smoke test execution (TEST-META-01)
+- [ ] ToDo: Meta API smoke test execution (TEST-META-01) — SKIPPED 01.01 (no ad spend data; rerun when data available)
   - Validate outbound_clicks field availability
   - Confirm spend/impressions/ctr/cpc fields
   - Record evidence in ACCEPTANCE_TESTS.md
-- [ ] ToDo: Shopify attribution smoke test (TEST-SHOPIFY-01)
+- [ ] ToDo: Shopify attribution smoke test (TEST-SHOPIFY-01) — SKIPPED 01.01 (no orders in test date range; rerun when orders exist)
   - Validate customerJourneySummary fields
   - Confirm UTM parameters structure
   - Record edge case behavior
-- [ ] ToDo: SQLite idempotency test (TEST-COLLECTOR-01)
+- [X] Done 01.01: SQLite idempotency test (TEST-COLLECTOR-01)
   - Run collector twice for same date
   - Verify no duplicates, stable row counts
   - Confirm collector_state behavior

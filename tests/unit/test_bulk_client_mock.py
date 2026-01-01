@@ -50,6 +50,7 @@ async def test_submit_job_success(bulk_client, mock_redis):
         # Mock GraphQL response
         mock_response = AsyncMock()
         mock_response.status = 200
+        mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
             "data": {
                 "bulkOperationRunQuery": {
@@ -95,6 +96,7 @@ async def test_submit_job_graphql_user_errors(bulk_client):
     with patch("src.apeg_core.shopify.bulk_client.AsyncRedisLock", return_value=mock_lock):
         mock_response = AsyncMock()
         mock_response.status = 200
+        mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
             "data": {
                 "bulkOperationRunQuery": {
@@ -117,10 +119,12 @@ async def test_submit_job_graphql_user_errors(bulk_client):
 @pytest.mark.asyncio
 async def test_poll_status_completed(bulk_client):
     """Test poll_status returns BulkOperation when status=COMPLETED."""
-    bulk_client._current_lock = AsyncMock()
+    current_lock = AsyncMock()
+    bulk_client._current_lock = current_lock
 
     mock_response = AsyncMock()
     mock_response.status = 200
+    mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = {
         "data": {
             "node": {
@@ -145,7 +149,7 @@ async def test_poll_status_completed(bulk_client):
     assert result.status == "COMPLETED"
     assert result.url == "https://storage.shopifycloud.com/result.jsonl"
     assert result.object_count == 500
-    assert bulk_client._current_lock.release.called
+    assert current_lock.release.called
 
 
 @pytest.mark.asyncio
@@ -155,6 +159,7 @@ async def test_poll_status_completed_missing_url(bulk_client):
 
     mock_response = AsyncMock()
     mock_response.status = 200
+    mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = {
         "data": {
             "node": {
@@ -187,6 +192,7 @@ async def test_poll_status_failed_with_partial_data(bulk_client):
 
     mock_response = AsyncMock()
     mock_response.status = 200
+    mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = {
         "data": {
             "node": {
