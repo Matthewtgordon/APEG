@@ -40,6 +40,8 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
 - [x] (2026-01-01 07:05Z) Update ACCEPTANCE_TESTS.md with evidence (completed: TEST-ENV-01, TEST-META-01, TEST-SHOPIFY-01, TEST-COLLECTOR-01, TEST-N8N-03)
 - [x] (2026-01-01 07:23Z) Update PROJECT_PLAN_ACTIVE.md with completion status (Phase 3 + Phase 4 status notes)
 - [x] (2026-01-01 07:23Z) Run full test suite: `PYTHONPATH=. ./venv/bin/python -m pytest -v` (52 passed, 2 skipped)
+- [x] (2026-01-01 08:38Z) Step 1 re-run: `PYTHONPATH=. pytest tests/unit/ -v` (44 passed) after async client fix
+- [x] (2026-01-01 08:39Z) Step 2 parity check: .env.example=30 keys, .env=37 keys; missing 0; extra 7; APEG_API_KEY valid
 
 ---
 
@@ -81,6 +83,10 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
   **Evidence:** pytest import mismatch between `tests/test_bulk_client_mock.py` and `tests/unit/test_bulk_client_mock.py`
   **Resolution:** Added `tests/__init__.py` and `tests/unit/__init__.py` to give unique module names
 
+- **Observation:** FastAPI TestClient requests hung under Python 3.13/anyio (blocking portal never returned)
+  **Evidence:** `pytest tests/unit/ -v` timed out on API route tests; minimal anyio `start_blocking_portal()` call hung
+  **Resolution:** Switched API route tests to `httpx.AsyncClient` + `ASGITransport` with `pytest_asyncio.fixture`
+
 ---
 
 ## Decision Log
@@ -98,6 +104,11 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
 - **Decision:** Add `__init__.py` markers to `tests/` and `tests/unit/` for pytest import disambiguation
   **Rationale:** Duplicate filenames across test directories caused import mismatch during full test runs
   **Alternatives Considered:** Renaming or deleting a test file (rejected: avoid altering/deleting tests)
+  **Date:** 2026-01-01
+
+- **Decision:** Replace FastAPI TestClient with `httpx.AsyncClient` in API route tests
+  **Rationale:** AnyIO blocking portal hangs under Python 3.13, preventing TestClient requests from returning
+  **Alternatives Considered:** Pin/downgrade anyio/httpx, switch to Python 3.11 (rejected: environment fixed)
   **Date:** 2026-01-01
 
 ---

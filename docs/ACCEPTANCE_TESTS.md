@@ -345,6 +345,14 @@ PASS - .env.integration.example is deleted
 - APEG_API_KEY: VALID
 - Overall Result: PASS
 
+**Evidence (2026-01-01 08:39Z):**
+- .env.example keys: 30
+- .env keys: 37
+- Missing keys: none
+- Extra keys: APEG_API_BASE_URL, APEG_API_HOST, APEG_API_PORT, DEMO_STORE_DOMAIN_ALLOWLIST, META_APP_ID, TEST_PRODUCT_ID, TEST_TAG_PREFIX
+- APEG_API_KEY: VALID
+- Overall Result: PASS
+
 ---
 
 ### TEST-N8N-01: Network + Auth Reachability (Negative Test)
