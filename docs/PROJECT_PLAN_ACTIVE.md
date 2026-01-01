@@ -5,6 +5,18 @@
 **Last Updated:** 2025-12-29  
 **Current Phase:** PHASE 0
 
+## 📋 Quick Navigation
+
+| Phase | Status | Key Deliverables |
+|-------|--------|------------------|
+| [Phase 0](#phase-0--config--cutover-readiness--active) | ⬅️ **ACTIVE** | Config + Cutover Readiness |
+| [Phase 1](#phase-1--deterministic-shopify-backbone) | ✅ **COMPLETE** | Shopify Backbone + Async Engine |
+| [Phase 2](#phase-2--shopify-muscle-layer-safe-writes) | ✅ **COMPLETE** | Bulk Mutations + Safe Writes |
+| [Phase 3](#phase-3--n8n-orchestration-bindings) | ✅ **COMPLETE** | n8n Integration + API Endpoints |
+| [Phase 4](#phase-4--data-collection--metrics-intelligence) | 🚧 **IN PROGRESS** | Metrics Collection + Attribution |
+| [Phase 5](#phase-5--feedback-loop--refinement-engine) | 🚧 **IN PROGRESS** | Feedback Loop + LLM Integration |
+| [Phase 6](#phase-6--hardening--cicd) | 📋 **PLANNED** | CI/CD + Hardening |
+
 ---
 ## RETAIN FORMAT DO NOT RESTRUCTURE
 ## PHASE TRANSITION GATE (MANDATORY)
@@ -313,3 +325,14 @@ Every PR must reference:
 3. Acceptance test(s)
 
 If test contradicts spec → patch spec first via CHANGELOG, then code.
+
+---
+
+## 📚 Related Documentation
+
+- **Architecture Spec**: [integration-architecture-spec-v1.4.1.md](integration-architecture-spec-v1.4.1.md)
+- **Environment Setup**: [ENVIRONMENT.md](ENVIRONMENT.md)
+- **API Documentation**: [API_USAGE.md](API_USAGE.md)
+- **Test Evidence**: [ACCEPTANCE_TESTS.md](ACCEPTANCE_TESTS.md)
+- **Change History**: [CHANGELOG.md](CHANGELOG.md)
+- **Documentation Index**: [README.md](README.md)

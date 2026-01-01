@@ -1,8 +1,21 @@
 # CHANGELOG.md
 # Spec Fixes + Test Evidence Log
 
+> **📍 Quick Links:** [Main README](../README.md) | [Project Plan](PROJECT_PLAN_ACTIVE.md) | [Docs Index](README.md)
+
 **Source of Truth:** integration-architecture-spec-v1.4.md  
 **Last Updated:** 2024-12-31
+
+## 📋 About This Document
+
+This changelog tracks:
+- Specification updates and version changes
+- Feature implementations and phase completions
+- Bug fixes and critical patches
+- Test evidence and verification results
+- Known limitations and blockers
+
+**Format:** Entries are organized by date (newest first) with phase context.
 
 ---
 

@@ -1,8 +1,21 @@
 # ACCEPTANCE_TESTS.md
 # Spec → Test Mapping
 
+> **📍 Quick Links:** [Main README](../README.md) | [Project Plan](PROJECT_PLAN_ACTIVE.md) | [Architecture Spec](integration-architecture-spec-v1.4.1.md) | [Docs Index](README.md)
+
 **Source of Truth:** integration-architecture-spec-v1.4.md  
 **Last Updated:** 2025-12-29
+
+## 📋 Quick Navigation
+
+| Phase | Test Range | Status |
+|-------|------------|--------|
+| [Phase 0](#phase-0--configuration--preconditions) | TEST-DOCS-*, TEST-ENV-* | Required |
+| [Phase 1](#phase-1--shopify-backbone-stage-2-verified) | TEST-BULK-* | ✅ Verified |
+| [Phase 2](#phase-2-bulk-mutations-critical-bug-fix) | TEST-CRITICAL-*, TEST-MUTATION-*, TEST-P2-* | ✅ Complete |
+| [Phase 3](#phase-3-n8n-orchestration-bindings) | TEST-API-*, TEST-N8N-* | ✅ Complete |
+| [Phase 4](#phase-4-data-collection--metrics-intelligence) | TEST-META-*, TEST-SHOPIFY-*, TEST-COLLECTOR-* | 🚧 In Progress |
+| [Phase 5](#phase-5-feedback-loop--refinement-engine) | TEST-FEEDBACK-* | 🚧 In Progress |
 
 ---
 

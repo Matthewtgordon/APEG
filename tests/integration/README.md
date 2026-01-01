@@ -1,5 +1,22 @@
 # Phase 2 Integration Tests
 
+> **📍 Quick Links:** [Main README](../../README.md) | [Docs Index](../../docs/README.md) | [Environment Setup](../../docs/ENVIRONMENT.md) | [API Usage](../../docs/API_USAGE.md)
+
+## 📋 Table of Contents
+
+- [Purpose](#purpose)
+- [Safety Gates](#safety-gates-all-required)
+- [Environment Setup](#environment-setup)
+- [Running Tests](#running-tests)
+- [Test Scenarios](#test-scenarios)
+- [Exit Codes](#exit-codes)
+- [Cleanup Guarantee](#cleanup-guarantee)
+- [Environment Variables](#environment-variables)
+- [CI/CD Integration](#cicd-integration)
+- [Troubleshooting](#troubleshooting)
+
+---
+
 ## Purpose
 Validates Phase 2 bulk mutations against a real Shopify DEMO store with enforced safety gates.
 

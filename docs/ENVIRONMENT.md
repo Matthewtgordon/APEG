@@ -1,8 +1,22 @@
 # ENVIRONMENT.md
 # EcomAgent Environment Configuration
 
+> **📍 Quick Links:** [Main README](../README.md) | [API Usage](API_USAGE.md) | [Docs Index](README.md)
+
 **Source of Truth:** integration-architecture-spec-v1.4.md Section 1.8  
 **Last Updated:** 2025-12-29
+
+## 📋 Table of Contents
+
+- [Profiles](#profiles)
+- [Required Variables](#required-variables)
+  - [Shopify Variables](#shopify-variables)
+  - [Meta Ads Variables](#meta-ads-variables)
+  - [n8n Variables](#n8n-variables)
+  - [Infrastructure Variables](#infrastructure-variables)
+- [File Structure](#file-structure)
+- [Security Rules](#security-rules)
+- [Demo → Live Swap](#demo--live-swap)
 
 ---
 
@@ -89,6 +103,44 @@ project/
 2. **No hardcoded values** - All env-specific values via env vars
 3. **Validate on startup** - Fail fast if required vars missing
 4. **Log safely** - Never log tokens, mask in error messages
+
+### 🔒 Security Best Practices
+
+**API Keys & Tokens**
+- Generate strong API keys: `openssl rand -hex 32`
+- Rotate credentials quarterly (or immediately if compromised)
+- Use different keys for DEMO and LIVE environments
+- Never share credentials in chat, logs, or documentation
+- Store rotation schedule in password manager notes
+
+**File Security**
+- Keep `.env.*` files in `.gitignore`
+- Set restrictive file permissions:
+  - Linux/macOS: `chmod 600 .env` (owner read/write only)
+  - Windows: Right-click → Properties → Security → Advanced (remove all except owner)
+- Use a secret manager for production:
+  - AWS: AWS Secrets Manager or Parameter Store
+  - Azure: Azure Key Vault
+  - GCP: Secret Manager
+  - Self-hosted: HashiCorp Vault
+- Back up `.env` files securely before modifications:
+  ```bash
+  cp .env .env.bak.$(date +%Y%m%d-%H%M%S)
+  ```
+
+**Environment Isolation**
+- Strict separation between DEMO and LIVE
+- Different Shopify stores for each environment
+- Different Meta ad accounts or sandboxes
+- Separate Redis instances recommended (or use different DB numbers)
+- Network isolation via VPCs or firewall rules (production)
+
+**Secret Manager Validation**
+- Test secret retrieval before deploying
+- Implement fallback mechanisms for transient failures
+- Monitor secret access logs for anomalies
+- Set up alerts for failed authentication attempts
+- Document emergency credential rotation procedures
 
 ---
 
