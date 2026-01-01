@@ -42,6 +42,9 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
 - [x] (2026-01-01 07:23Z) Run full test suite: `PYTHONPATH=. ./venv/bin/python -m pytest -v` (52 passed, 2 skipped)
 - [x] (2026-01-01 08:38Z) Step 1 re-run: `PYTHONPATH=. pytest tests/unit/ -v` (44 passed) after async client fix
 - [x] (2026-01-01 08:39Z) Step 2 parity check: .env.example=30 keys, .env=37 keys; missing 0; extra 7; APEG_API_KEY valid
+- [x] (2026-01-01 08:41Z) Step 3: Started uvicorn (PID 63436; logs `/tmp/uvicorn.log`), but localhost connections blocked in sandbox; stopped server
+- [x] (2026-01-01 08:41Z) Step 4: API auth pre-checks via `httpx.AsyncClient` + `ASGITransport` (401 missing key, 400 domain mismatch, 400 empty products)
+- [~] (2026-01-01 08:42Z) Step 5: TEST-N8N-03 skipped (n8n not available in sandbox; localhost networking blocked)
 
 ---
 
@@ -87,6 +90,10 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
   **Evidence:** `pytest tests/unit/ -v` timed out on API route tests; minimal anyio `start_blocking_portal()` call hung
   **Resolution:** Switched API route tests to `httpx.AsyncClient` + `ASGITransport` with `pytest_asyncio.fixture`
 
+- **Observation:** Localhost networking is blocked in this sandbox (curl to 127.0.0.1:8000 failed)
+  **Evidence:** `curl: (7) Failed to connect to 127.0.0.1 port 8000` while uvicorn was running
+  **Resolution:** Performed API auth pre-checks using in-process `httpx.AsyncClient` + `ASGITransport`
+
 ---
 
 ## Decision Log
@@ -109,6 +116,11 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
 - **Decision:** Replace FastAPI TestClient with `httpx.AsyncClient` in API route tests
   **Rationale:** AnyIO blocking portal hangs under Python 3.13, preventing TestClient requests from returning
   **Alternatives Considered:** Pin/downgrade anyio/httpx, switch to Python 3.11 (rejected: environment fixed)
+  **Date:** 2026-01-01
+
+- **Decision:** Use `ASGITransport` for API pre-checks instead of curl
+  **Rationale:** Sandbox blocks localhost networking, so in-process requests are the only reliable option
+  **Alternatives Considered:** Keep uvicorn running and retry curl (rejected: repeated connection failures)
   **Date:** 2026-01-01
 
 ---

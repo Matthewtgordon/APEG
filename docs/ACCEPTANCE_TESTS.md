@@ -432,11 +432,14 @@ PASS - .env.integration.example is deleted
 4. Verify NO 422 error
 5. Verify 202 response OR 400 (for other validation reasons, NOT 422)
 **Evidence Source:** n8n execution showing successful type conversion
-**Status:** READY FOR TEST (after n8n instance setup)
+**Status:** BLOCKED (2026-01-01; n8n unavailable in sandbox)
 **Evidence:**
 ```
 [Execution screenshot showing 202 response despite string input]
 ```
+
+**Evidence (2026-01-01 08:42Z):**
+SKIPPED in sandbox: n8n instance not available and localhost networking is blocked; rerun in full environment.
 
 ---
 
