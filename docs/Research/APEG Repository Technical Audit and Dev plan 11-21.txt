@@ -1,0 +1,1159 @@
+# PEG Repository Technical Audit & Development Plan 11-21-25
+## Gemstone Business Automation System Analysis
+
+
+## Part 1: Repository State Analysis
+
+### Access Status
+**Unable to analyze:** GitHub Actions workflows, test coverage, directory implementations, or identify placeholders/TODOs without repository access.
+
+### Required for Complete Audit
+- Verify repository exists at correct URL
+- Grant public access or provide authentication
+- Alternative: Share repository export or documentation
+- Check for username variations (MatthewTGordon, mtgordon, etc.)
+
+### Recommended Next Step
+Before implementing the patterns outlined in this report, conduct an internal audit of your current codebase to identify which components from this analysis are already implemented versus needed.
+
+---
+
+## Part 2: E-Commerce Integration - Shopify
+
+### Product Variant Architecture for Gemstones
+
+**Strategic Recommendation: Single Product with Multiple Variants**
+
+Shopify limits products to 3 options and 100 variants per product. For gemstone jewelry, structure products as:
+
+**Option Structure:**
+- **Option 1:** Metal Type (14K White Gold, 18K Yellow Gold, Platinum)
+- **Option 2:** Size (Ring size 5-9, chain length)
+- **Option 3:** Carat Weight (0.5ct, 0.75ct, 1.0ct, 1.5ct)
+
+**For attributes beyond 3 options**, use variant-level metafields for:
+- Clarity grade (VS1, VS2, VVS1)
+- Color grade (D, E, F, G)
+- Cut grade (Excellent, Very Good)
+- Stone origin (Sri Lanka, Burma, Madagascar)
+- Certification number and lab (GIA, AGS)
+- Treatment status (Heated, Unheated)
+- Fluorescence level
+
+### Critical Metafield Implementation
+
+**Create metafield definitions:**
+
+```graphql
+mutation CreateGemstoneMetafields {
+  metafieldDefinitionCreate(
+    definition: {
+      name: "Carat Weight"
+      namespace: "custom"
+      key: "carat_weight"
+      type: "number_decimal"
+      ownerType: PRODUCT_VARIANT
+      validations: [
+        { name: "min", value: "0.01" }
+        { name: "max", value: "50.0" }
+      ]
+    }
+  ) {
+    createdDefinition { id name }
+  }
+}
+```
+
+**Essential gemstone metafields:**
+- `carat_weight` (number_decimal)
+- `clarity_grade` (single_line_text)
+- `color_grade` (single_line_text)
+- `cut_grade` (single_line_text)
+- `stone_origin` (single_line_text)
+- `certification_number` (single_line_text)
+- `certification_lab` (single_line_text)
+- `certificate_pdf` (file_reference)
+- `stone_treatment` (single_line_text)
+- `appraisal_value` (money)
+
+### SKU Structure for Unique Items
+
+**Format:** `[CATEGORY]-[STONE]-[CARAT]-[METAL]-[UNIQUEID]`
+
+**Example:** `RING-SAPP-150-14WG-001234` (Sapphire Ring, 1.50ct, 14K White Gold)
+
+**Implementation:**
+```javascript
+function generateGemStoneSKU(category, stone, carat, metal, sequence) {
+  const categoryCode = category.substring(0, 4).toUpperCase();
+  const stoneCode = stone.substring(0, 4).toUpperCase();
+  const caratStr = carat.toString().replace('.', '').padStart(3, '0');
+  const metalCode = metal.replace(/[^A-Z0-9]/g, '').substring(0, 4).toUpperCase();
+  const uniqueID = sequence.toString().padStart(6, '0');
+  
+  return `${categoryCode}-${stoneCode}-${caratStr}-${metalCode}-${uniqueID}`;
+}
+```
+
+### Inventory Synchronization Webhooks
+
+**Critical webhooks to subscribe:**
+1. `inventory_levels/update` - Real-time quantity changes
+2. `orders/create` - New order placed
+3. `orders/paid` - Payment confirmed, reserve inventory
+4. `orders/cancelled` - Restore inventory
+5. `products/update` - Product modifications
+
+**Webhook handler with HMAC verification:**
+```javascript
+function verifyWebhook(req) {
+  const hmac = req.headers['x-shopify-hmac-sha256'];
+  const body = req.rawBody;
+  const hash = crypto
+    .createHmac('sha256', process.env.SHOPIFY_WEBHOOK_SECRET)
+    .update(body, 'utf8')
+    .digest('base64');
+  return hash === hmac;
+}
+
+app.post('/webhooks/inventory', express.json(), async (req, res) => {
+  if (!verifyWebhook(req)) {
+    return res.status(401).send('Unauthorized');
+  }
+  
+  const { inventory_item_id, location_id, available } = req.body;
+  
+  // Sync to central inventory system and other platforms
+  await syncInventoryToAllPlatforms({
+    itemId: inventory_item_id,
+    locationId: location_id,
+    quantity: available,
+    timestamp: new Date()
+  });
+  
+  res.status(200).send('OK');
+});
+```
+
+### SEO Optimization for Gemstone Products
+
+**Title structure:** `[Stone] [Carat] [Cut] [Metal] [Category] - [Collection]`
+
+**Example:** "Blue Sapphire 1.5ct Oval 14K White Gold Engagement Ring - Heritage Collection"
+
+**Structured data implementation:**
+```json
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "Blue Sapphire 1.5ct Oval Engagement Ring",
+  "sku": "RING-SAPP-150-14WG-001234",
+  "offers": {
+    "@type": "Offer",
+    "price": "3500.00",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "additionalProperty": [
+    { "@type": "PropertyValue", "name": "Carat Weight", "value": "1.5" },
+    { "@type": "PropertyValue", "name": "Certification", "value": "GIA" }
+  ]
+}
+```
+
+### Rate Limiting Strategy
+
+**Shopify GraphQL API limits:**
+- Standard: 1000 points, restore at 50 points/second
+- Shopify Plus: 2000 points, restore at 100 points/second
+
+**Implementation with throttling:**
+```javascript
+async function shopifyRequest(query, variables) {
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken
+    },
+    body: JSON.stringify({ query, variables })
+  });
+  
+  const data = await response.json();
+  const cost = data.extensions.cost;
+  
+  // Wait if below threshold
+  if (cost.throttleStatus.currentlyAvailable < 100) {
+    const waitSeconds = Math.ceil(
+      (100 - cost.throttleStatus.currentlyAvailable) / 
+      cost.throttleStatus.restoreRate
+    );
+    await sleep(waitSeconds * 1000);
+  }
+  
+  return data;
+}
+```
+
+### OAuth2 Flow Implementation
+
+**Complete authentication flow:**
+```javascript
+const scopes = [
+  'read_products',
+  'write_products',
+  'read_inventory',
+  'write_inventory',
+  'read_orders',
+  'write_orders'
+].join(',');
+
+const authUrl = `https://${shop}.myshopify.com/admin/oauth/authorize?` +
+  `client_id=${apiKey}&` +
+  `scope=${scopes}&` +
+  `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+  `state=${state}`;
+
+// After callback, exchange code for token
+const response = await axios.post(
+  `https://${shop}/admin/oauth/access_token`,
+  {
+    client_id: process.env.SHOPIFY_API_KEY,
+    client_secret: process.env.SHOPIFY_API_SECRET,
+    code
+  }
+);
+
+const { access_token, scope } = response.data;
+```
+
+---
+
+## Part 2: E-Commerce Integration - Etsy
+
+### Authentication with PKCE
+
+**OAuth 2.0 with PKCE (required):**
+```javascript
+// Generate code verifier and challenge
+const codeVerifier = crypto.randomBytes(32).toString('base64url');
+const codeChallenge = crypto
+  .createHash('sha256')
+  .update(codeVerifier)
+  .digest('base64url');
+
+const authUrl = `https://www.etsy.com/oauth/connect?` +
+  `response_type=code&` +
+  `client_id=${apiKey}&` +
+  `redirect_uri=${redirectUri}&` +
+  `scope=listings_r listings_w transactions_r&` +
+  `state=${state}&` +
+  `code_challenge=${codeChallenge}&` +
+  `code_challenge_method=S256`;
+```
+
+**Token management:**
+- Access tokens expire in **1 hour**
+- Refresh tokens expire in **90 days**
+- Refresh 5 minutes before expiration
+- Include `x-api-key` header in all requests
+
+### Rate Limiting
+
+**Etsy API limits:**
+- 10 requests/second
+- 10,000 requests/day
+- Progressive structure: 12 two-hour blocks over 24 hours
+
+**Implementation:**
+```javascript
+class EtsyRateLimiter {
+  constructor() {
+    this.requestsThisSecond = 0;
+    this.requestsToday = 0;
+    this.lastSecondReset = Date.now();
+  }
+
+  async throttle() {
+    const now = Date.now();
+    
+    if (now - this.lastSecondReset >= 1000) {
+      this.requestsThisSecond = 0;
+      this.lastSecondReset = now;
+    }
+    
+    if (this.requestsThisSecond >= 9) {
+      await this.sleep(1000 - (now - this.lastSecondReset));
+    }
+    
+    this.requestsThisSecond++;
+    this.requestsToday++;
+  }
+}
+```
+
+### Listing Optimization for Search
+
+**Title structure best practices:**
+- First 40 characters most important (visible in search)
+- Include: gemstone type, metal, item type, style, occasion
+- Maximum 140 characters
+
+**Example:** "Natural Amethyst Ring Sterling Silver | February Birthstone | Healing Crystal Ring | Boho Gemstone Jewelry Gift for Her"
+
+**Tag strategy (use all 13 tags):**
+```javascript
+const gemstoneRingTags = [
+  "amethyst ring",
+  "birthstone jewelry",
+  "healing crystal ring",
+  "sterling silver ring",
+  "gemstone jewelry",
+  "february birthstone",
+  "spiritual gift",
+  "boho jewelry",
+  "purple gemstone",
+  "handmade ring",
+  "natural amethyst",
+  "crystal jewelry",
+  "gift for her"
+];
+```
+
+**Etsy search ranking factors:**
+1. Query matching (title, tags, attributes, description)
+2. Listing quality score
+3. Customer and market experience score
+4. Recency and listing age
+5. Shipping price
+6. Conversion rate
+
+### Inventory Management API
+
+**Create listing with variations:**
+```http
+PUT /v3/application/listings/{listing_id}/inventory
+
+{
+  "products": [
+    {
+      "sku": "AMETHYST-RING-6",
+      "property_values": [
+        {
+          "property_id": 100,
+          "property_name": "Size",
+          "values": ["6"]
+        }
+      ],
+      "offerings": [
+        {
+          "price": 89.99,
+          "quantity": 1,
+          "is_enabled": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Shipping Profiles for Jewelry
+
+**Recommended profiles:**
+- **Domestic Standard:** $5 primary, $2 secondary, 1-3 day processing
+- **International:** $15 primary, $5 secondary, 3-5 day processing
+- **High-Value Insured:** $12 primary, $4 secondary, 1-2 day processing
+
+**Shop section organization:**
+- By category: Rings, Necklaces, Earrings, Bracelets
+- By gemstone: Amethyst, Opal, Sapphire, Emerald
+- By metal: Sterling Silver, Gold, Rose Gold
+- Special: Birthstone Jewelry, Custom Orders, One-of-a-Kind
+
+### One-of-a-Kind Item Pattern
+
+```javascript
+{
+  quantity: 1,
+  sku: "UNIQUE-SAPPHIRE-001",
+  is_customizable: false,
+  should_auto_renew: false,
+  state: "active"
+}
+```
+
+**Workflow:**
+1. Set quantity to 1
+2. Use unique SKU
+3. Disable auto-renew
+4. Archive after sale (preserves SEO history)
+
+---
+
+## Part 3: Decision Engine Analysis
+
+### Thompson Sampling for Product Optimization
+
+**Implementation for description testing:**
+```python
+import numpy as np
+
+class ThompsonSamplingDescriptions:
+    def __init__(self, n_descriptions, prior_alpha=1, prior_beta=1):
+        self.n = n_descriptions
+        self.alpha = np.ones(n_descriptions) * prior_alpha
+        self.beta = np.ones(n_descriptions) * prior_beta
+        
+    def select_description(self):
+        samples = np.random.beta(self.alpha, self.beta)
+        return np.argmax(samples)
+    
+    def update(self, description_id, conversion):
+        if conversion:
+            self.alpha[description_id] += 1
+        else:
+            self.beta[description_id] += 1
+```
+
+**Advantages:**
+- Automatically balances exploration/exploitation
+- 30-50% faster convergence than epsilon-greedy
+- No hyperparameter tuning required
+- Proven 3.48% revenue improvement (Walmart Labs study)
+
+### Dynamic Pricing with Multi-Armed Bandits
+
+**Implementation:**
+```python
+class DynamicPricingTS:
+    def __init__(self, price_points):
+        self.prices = np.array(price_points)
+        self.n_prices = len(price_points)
+        self.alpha = np.ones(self.n_prices)
+        self.beta = np.ones(self.n_prices)
+        
+    def select_price(self, inventory_level=None):
+        sampled_rates = np.random.beta(self.alpha, self.beta)
+        expected_revenue = self.prices * sampled_rates
+        
+        # Adjust for scarcity
+        if inventory_level and inventory_level < 10:
+            expected_revenue *= 1.2
+            
+        return np.argmax(expected_revenue)
+    
+    def update(self, price_idx, sale_occurred):
+        if sale_occurred:
+            self.alpha[price_idx] += 1
+        else:
+            self.beta[price_idx] += 1
+```
+
+**Best practices for jewelry:**
+- Use 5-7 price points within 20% range
+- Test psychological pricing ($999 vs $1,000)
+- Adjust for seasonality (wedding season, holidays)
+- Track conversion rate, revenue per visitor, AOV
+
+### Reinforcement Learning for Inventory Allocation
+
+**State representation:**
+```python
+state = {
+    'current_inventory': [shopify_qty, etsy_qty],
+    'days_until_restock': 14,
+    'recent_sales_rate': [1.2, 0.8],  # items/day per platform
+    'seasonal_factor': 1.3,
+    'competitor_prices': [price_1, price_2],
+    'customer_demand': forecast
+}
+```
+
+**Reward function:**
+```python
+def calculate_reward(sales, inventory_cost, stockout_penalty):
+    revenue = sum(sales * prices)
+    holding_cost = inventory_level * DAILY_HOLDING_RATE
+    stockout_cost = unmet_demand * STOCKOUT_PENALTY
+    
+    return revenue - holding_cost - stockout_cost
+```
+
+**Expected performance (from research):**
+- 16.4% cost reduction for linear supply chains
+- 11.3% improvement for divergent networks
+- Outperforms traditional base-stock policies
+
+### Multi-Platform Allocation Strategy
+
+```python
+def allocate_inventory(total_qty, shopify_velocity, etsy_velocity,
+                       shopify_margin, etsy_margin):
+    shopify_score = shopify_velocity * shopify_margin
+    etsy_score = etsy_velocity * etsy_margin
+    
+    total_score = shopify_score + etsy_score
+    shopify_allocation = int(total_qty * (shopify_score / total_score))
+    etsy_allocation = total_qty - shopify_allocation
+    
+    return shopify_allocation, etsy_allocation
+```
+
+### MCTS for Sequential Decisions
+
+**Applications:**
+- Supply chain optimization
+- Multi-step pricing strategies
+- Product launch timing
+
+**Core algorithm:**
+```python
+class MCTSNode:
+    def __init__(self, state, parent=None):
+        self.state = state
+        self.parent = parent
+        self.children = []
+        self.visits = 0
+        self.value = 0
+        self.untried_actions = state.get_legal_actions()
+        
+    def select_child(self, exploration_weight=1.4):
+        # UCB1 selection
+        return max(self.children, key=lambda c: 
+            c.value/c.visits + exploration_weight * 
+            math.sqrt(math.log(self.visits)/c.visits)
+        )
+```
+
+### Safety Mechanisms (Loop Guards)
+
+**Critical safeguards:**
+
+**1. Price bounds:**
+```python
+class SafePricingEngine:
+    def __init__(self, base_price, min_multiplier=0.7, max_multiplier=1.5):
+        self.base_price = base_price
+        self.min_price = base_price * min_multiplier
+        self.max_price = base_price * max_multiplier
+        self.alert_threshold = 0.15  # 15% change triggers review
+        
+    def validate_price(self, proposed_price):
+        # Hard bounds
+        if proposed_price < self.min_price:
+            self.log_alert("Price below minimum", proposed_price)
+            return self.min_price
+        if proposed_price > self.max_price:
+            self.log_alert("Price above maximum", proposed_price)
+            return self.max_price
+        
+        # Rate of change check
+        if self.price_history:
+            last_price = self.price_history[-1]
+            change_pct = abs(proposed_price - last_price) / last_price
+            if change_pct > self.alert_threshold:
+                return self.request_approval(proposed_price, last_price)
+        
+        return proposed_price
+```
+
+**2. Inventory guards:**
+```python
+class SafeInventoryManager:
+    def __init__(self):
+        self.max_daily_orders = 5
+        self.min_reorder_interval = 7  # days
+        self.last_reorder_date = {}
+        
+    def can_reorder(self, product_id, quantity):
+        # Daily order limit
+        if self.order_count_today >= self.max_daily_orders:
+            return False, "Daily order limit reached"
+        
+        # Minimum interval between orders
+        last_order = self.last_reorder_date.get(product_id)
+        if last_order:
+            days_since = (datetime.now() - last_order).days
+            if days_since < self.min_reorder_interval:
+                return False, f"Too soon (last order {days_since} days ago)"
+        
+        return True, "OK"
+```
+
+**3. Model drift detection:**
+```python
+class ModelMonitor:
+    def __init__(self, window_size=100):
+        self.predictions = deque(maxlen=window_size)
+        self.actuals = deque(maxlen=window_size)
+        self.baseline_mae = None
+        
+    def check_performance(self, prediction, actual):
+        self.predictions.append(prediction)
+        self.actuals.append(actual)
+        
+        if len(self.predictions) == self.predictions.maxlen:
+            current_mae = np.mean(np.abs(
+                np.array(self.predictions) - np.array(self.actuals)
+            ))
+            
+            if current_mae > self.baseline_mae * 1.3:
+                self.trigger_model_review()
+                return False
+        
+        return True
+```
+
+---
+
+## Part 4: Integration Architecture
+
+### Event-Driven Architecture Design
+
+**Core pattern:**
+```
+Platform Event → Queue → Event Handler → Inventory Service → Multi-Platform Update
+                                              ↓
+                                    Centralized Inventory DB
+                                              ↓
+                                    Propagate to all platforms
+```
+
+**Event types:**
+- `inventory.updated`
+- `order.created`
+- `order.cancelled`
+- `product.synced`
+- `price.changed`
+
+### Webhook vs Polling Strategy
+
+**Shopify:**
+- Use webhooks (native support)
+- 5-second response requirement
+- 19 retries over 48 hours
+- Acknowledge immediately, process asynchronously
+
+**Etsy:**
+- No native webhook support
+- Use polling every 2 minutes
+- Respect rate limits (10/second)
+- Track `updated_at` timestamps
+
+**Best practice pattern:**
+```
+Webhook Endpoint → Immediate 200 OK → Message Queue → Background Workers → Database
+                                    ↓
+                            Idempotency Check (store webhook ID)
+```
+
+### Queue System Recommendation
+
+**Use RabbitMQ for primary queue:**
+
+**Advantages:**
+- Guaranteed delivery (AMQP protocol)
+- Persistent queues survive crashes
+- Advanced routing (direct, topic, fanout exchanges)
+- Native retry policies and dead-letter queues
+- Message acknowledgments prevent data loss
+
+**Configuration:**
+- Exchange type: Topic (flexible routing)
+- Queue durability: Persistent
+- Message TTL: 24 hours
+- Dead letter exchange: For failed messages
+- Prefetch count: 10-50
+
+**Use Redis for:**
+- Rate limiting counters
+- API response caching
+- Token storage
+- Session management
+
+### Multi-API Rate Limiting
+
+**Token bucket pattern per platform:**
+```javascript
+class PlatformRateLimiter {
+  constructor(platform) {
+    this.limits = {
+      shopify: { perSecond: 2, burst: 4 },
+      etsy: { perSecond: 8, burst: 10 }
+    };
+    this.bucket = new TokenBucket(this.limits[platform]);
+  }
+  
+  async waitForToken() {
+    while (!this.bucket.tryConsume(1)) {
+      await sleep(100);
+    }
+  }
+}
+```
+
+**Concurrent platform operations:**
+```javascript
+const platformQueues = {
+  shopify: new Bottleneck({ maxConcurrent: 2, minTime: 500 }),
+  etsy: new Bottleneck({ maxConcurrent: 8, minTime: 125 })
+};
+
+await Promise.all([
+  platformQueues.shopify.schedule(() => updateShopifyInventory()),
+  platformQueues.etsy.schedule(() => updateEtsyInventory())
+]);
+```
+
+### OAuth2 Token Management
+
+**Multi-platform token storage:**
+```javascript
+tokens = {
+  shopify: {
+    shop_id: "store123",
+    access_token: "...",
+    expires_at: null,  // Shopify tokens don't expire
+    scope: "read_products,write_orders"
+  },
+  etsy: {
+    shop_id: "shop456",
+    access_token: "...",
+    refresh_token: "...",
+    expires_at: "2024-12-01T...",  // 1 hour expiry
+    scope: "listings_r transactions_r"
+  }
+}
+```
+
+**Proactive refresh pattern:**
+```javascript
+async function getValidToken(platform, shopId) {
+  const cached = await tokenCache.get(`${platform}:${shopId}`);
+  if (cached && !isExpiringSoon(cached, 300)) return cached;
+  
+  const refreshed = await refreshToken(platform, shopId);
+  await tokenCache.set(`${platform}:${shopId}`, refreshed);
+  return refreshed;
+}
+```
+
+### Error Handling with Exponential Backoff
+
+**Retry pattern:**
+```javascript
+async function retryWithBackoff(fn, maxRetries = 5) {
+  let retries = 0;
+  const baseDelay = 1000;
+  
+  while (retries < maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!isRetryable(error)) throw error;
+      
+      retries++;
+      if (retries >= maxRetries) throw error;
+      
+      const exponentialDelay = Math.pow(2, retries) * baseDelay;
+      const jitter = Math.random() * 100;
+      await sleep(exponentialDelay + jitter);
+    }
+  }
+}
+
+function isRetryable(error) {
+  return [429, 500, 502, 503, 504].includes(error.status) ||
+         error.code === 'ECONNRESET' ||
+         error.code === 'ETIMEDOUT';
+}
+```
+
+**Circuit breaker states:**
+- **CLOSED:** Normal operation
+- **OPEN:** Fast-fail after threshold (5 failures in 60s)
+- **HALF_OPEN:** Test with single request after 30s cooldown
+
+### Idempotency Patterns
+
+**Idempotency key implementation:**
+```javascript
+async function handleRequest(req) {
+  const key = req.headers['idempotency-key'];
+  
+  // Check if already processed
+  const cached = await redis.get(`idem:${key}`);
+  if (cached) return JSON.parse(cached);
+  
+  // Set processing state
+  await redis.set(`idem:${key}`, 'PROCESSING', 'EX', 300, 'NX');
+  
+  try {
+    const result = await processRequest(req);
+    await redis.set(`idem:${key}`, JSON.stringify(result), 'EX', 86400);
+    return result;
+  } catch (error) {
+    await redis.del(`idem:${key}`);
+    throw error;
+  }
+}
+```
+
+**Database pattern:**
+```sql
+CREATE TABLE idempotency_keys (
+  key VARCHAR(255) PRIMARY KEY,
+  request_hash VARCHAR(64),
+  response_body TEXT,
+  status_code INT,
+  created_at TIMESTAMP,
+  expires_at TIMESTAMP
+);
+```
+
+### Data Consistency Strategy
+
+**Eventual consistency approach:**
+- Accept brief inconsistencies (<5 minutes)
+- Implement reconciliation jobs every 15-30 minutes
+- Use timestamps to detect drift
+- Alert on discrepancies >1%
+
+**Reconciliation job:**
+```javascript
+async function reconcileInventory() {
+  const [shopifyData, etsyData, localData] = await Promise.all([
+    fetchShopifyInventory(),
+    fetchEtsyInventory(),
+    fetchLocalInventory()
+  ]);
+  
+  const discrepancies = findDiscrepancies(shopifyData, etsyData, localData);
+  
+  for (const item of discrepancies) {
+    await syncToAllPlatforms(item.sku, localData[item.sku].quantity);
+  }
+}
+```
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│  Shopify Webhooks    Etsy Polling (2min)   │
+└────────────┬─────────────────┬──────────────┘
+             │                 │
+             ▼                 ▼
+      ┌──────────────────────────────┐
+      │   API Gateway / Ingress      │
+      │   - Rate limiting            │
+      │   - Authentication           │
+      │   - Request validation       │
+      └─────────────┬────────────────┘
+                    │
+                    ▼
+      ┌──────────────────────────────┐
+      │     RabbitMQ Queue           │
+      │   - Durable queues           │
+      │   - Dead letter exchange     │
+      └─────────────┬────────────────┘
+                    │
+                    ▼
+      ┌──────────────────────────────┐
+      │   Worker Pool (3-5 workers)  │
+      │   - Process events           │
+      │   - Transform data           │
+      │   - Handle retries           │
+      └─────────────┬────────────────┘
+                    │
+                    ▼
+      ┌──────────────────────────────┐
+      │   Services Layer             │
+      │   ├─ Inventory Service       │
+      │   ├─ Platform API Clients    │
+      │   └─ Sync Orchestrator       │
+      └─────────────┬────────────────┘
+                    │
+        ┌───────────┴───────────┐
+        ▼                       ▼
+┌──────────────┐        ┌──────────────┐
+│  PostgreSQL  │        │    Redis     │
+│  (main DB)   │        │  (cache +    │
+│              │        │   rate limit)│
+└──────────────┘        └──────────────┘
+```
+
+---
+
+## Part 5: Missing Components & Next Steps
+
+### Critical Path to MVP
+
+**Phase 1: Foundation (Weeks 1-2)**
+1. Set up development environment and repository structure
+2. Implement OAuth2 flows for Shopify and Etsy
+3. Create database schema for inventory, products, tokens
+4. Set up RabbitMQ and Redis infrastructure
+5. Implement rate limiting classes for both platforms
+
+**Phase 2: Core Integration (Weeks 3-4)**
+6. Build Shopify API client with GraphQL support
+7. Build Etsy API v3 client with PKCE authentication
+8. Implement webhook handlers (Shopify) with HMAC verification
+9. Create polling service for Etsy (2-minute intervals)
+10. Build centralized inventory management service
+
+**Phase 3: Synchronization (Weeks 5-6)**
+11. Implement event-driven inventory sync logic
+12. Create SKU-based product matching across platforms
+13. Build idempotency system for duplicate prevention
+14. Implement error handling with exponential backoff
+15. Create reconciliation jobs for drift detection
+
+**Phase 4: Decision Engine (Weeks 7-8)**
+16. Implement Thompson Sampling for A/B testing
+17. Build dynamic pricing module with safety bounds
+18. Create inventory allocation algorithm
+19. Implement loop guards and circuit breakers
+20. Build monitoring and alerting system
+
+**Phase 5: Testing & Optimization (Weeks 9-10)**
+21. Integration testing with sandbox accounts
+22. Load testing for concurrent operations
+23. Failure scenario testing (network issues, rate limits)
+24. Performance optimization
+25. Documentation and deployment
+
+### Essential Missing Components
+
+**Based on typical automation system requirements:**
+
+**1. Authentication & Authorization**
+- OAuth2 client implementations for Shopify and Etsy
+- Token storage with encryption
+- Token refresh automation
+- Multi-tenant support (if managing multiple shops)
+
+**2. API Clients**
+- Shopify GraphQL client with rate limiting
+- Etsy v3 REST client with PKCE
+- Request/response logging
+- Error handling middleware
+
+**3. Webhook Infrastructure**
+- Webhook receiver endpoints
+- HMAC verification
+- Payload validation
+- Queue integration
+
+**4. Inventory Service**
+- Centralized inventory database
+- SKU mapping across platforms
+- Quantity tracking with reserves
+- Low-stock alerts
+
+**5. Synchronization Engine**
+- Event processing workers
+- Platform-specific transformers
+- Conflict resolution logic
+- Audit logging
+
+**6. Decision Engine Components**
+- Thompson Sampling implementation
+- Pricing optimization module
+- Inventory allocation algorithm
+- A/B testing framework
+
+**7. Safety Systems**
+- Price bounds enforcement
+- Inventory loop guards
+- Circuit breakers
+- Model drift detection
+- Human-in-the-loop approvals
+
+**8. Monitoring & Observability**
+- Metrics collection (Prometheus/DataDog)
+- Error tracking (Sentry)
+- Performance monitoring
+- Business KPI dashboards
+
+**9. Configuration Management**
+- Environment-based configs
+- Feature flags
+- Platform credentials storage
+- Business rule definitions
+
+**10. Testing Infrastructure**
+- Unit tests for all modules
+- Integration tests with mocks
+- End-to-end tests with sandboxes
+- Load testing suite
+
+### Priority Feature List
+
+**Must-Have for MVP:**
+1. ✅ OAuth2 authentication (both platforms)
+2. ✅ Basic inventory sync (Shopify ↔ Etsy)
+3. ✅ SKU-based product matching
+4. ✅ Webhook handling (Shopify)
+5. ✅ Polling service (Etsy)
+6. ✅ Rate limiting enforcement
+7. ✅ Error handling and retries
+8. ✅ Idempotency for duplicate prevention
+9. ✅ Basic monitoring and logging
+10. ✅ Manual pricing controls
+
+**Should-Have (Post-MVP):**
+11. ⏳ Thompson Sampling for product testing
+12. ⏳ Dynamic pricing optimization
+13. ⏳ Advanced inventory allocation
+14. ⏳ Automated reconciliation jobs
+15. ⏳ Multi-channel analytics dashboard
+
+**Nice-to-Have (Future):**
+16. 🔮 MCTS for strategic planning
+17. 🔮 Deep RL for inventory forecasting
+18. 🔮 Image optimization and A/B testing
+19. 🔮 Customer segmentation and targeting
+20. 🔮 Automated SEO optimization
+
+### Recommended Technology Stack
+
+**Backend:**
+- **Language:** Python 3.11+ or Node.js 18+
+- **Framework:** FastAPI (Python) or Express (Node.js)
+- **API Client:** httpx (Python) or axios (Node.js)
+- **Database:** PostgreSQL 15+
+- **Cache:** Redis 7+
+- **Queue:** RabbitMQ 3.12+
+- **ORM:** SQLAlchemy (Python) or Prisma (Node.js)
+
+**Decision Engine:**
+- **ML Framework:** NumPy/SciPy for bandits
+- **RL:** Stable-Baselines3 or TensorFlow
+- **Optimization:** scikit-learn
+
+**Infrastructure:**
+- **Containerization:** Docker + Docker Compose
+- **Orchestration:** Kubernetes (production) or Docker Swarm
+- **CI/CD:** GitHub Actions
+- **Monitoring:** Prometheus + Grafana
+- **Logging:** ELK Stack or Loki
+- **Error Tracking:** Sentry
+
+**Testing:**
+- **Unit:** pytest (Python) or Jest (Node.js)
+- **Integration:** pytest-mock or Supertest
+- **E2E:** Playwright
+- **Load:** Locust or k6
+
+### Key Metrics to Track
+
+**Business Metrics:**
+- Revenue per platform
+- Conversion rate by platform
+- Average order value
+- Inventory turnover rate
+- Stockout frequency
+- Customer acquisition cost
+
+**System Metrics:**
+- API call success rate (>99.5% target)
+- Average sync latency (<30 seconds target)
+- Queue depth (alert if >1000)
+- Rate limit 429 responses (<0.5% target)
+- Reconciliation discrepancies (<1% target)
+- Failed retry count
+
+**ML/Decision Engine Metrics:**
+- Bandit regret
+- Convergence speed
+- Exploration ratio
+- Pricing accuracy
+- Inventory forecast accuracy
+
+### Repository Structure Recommendation
+
+```
+peg/
+├── src/
+│   ├── api/                    # API endpoints
+│   │   ├── webhooks/
+│   │   ├── admin/
+│   │   └── health/
+│   ├── clients/                # Platform API clients
+│   │   ├── shopify/
+│   │   └── etsy/
+│   ├── services/               # Business logic
+│   │   ├── inventory/
+│   │   ├── sync/
+│   │   ├── pricing/
+│   │   └── decision_engine/
+│   ├── models/                 # Data models
+│   ├── workers/                # Background workers
+│   ├── utils/                  # Utilities
+│   └── config/                 # Configuration
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   └── e2e/
+├── .github/
+│   └── workflows/              # CI/CD pipelines
+├── docker/
+├── docs/
+├── scripts/
+└── README.md
+```
+
+### Implementation Guidelines
+
+**1. Start simple, iterate fast:**
+- Begin with manual pricing (no ML initially)
+- Simple round-robin inventory allocation
+- Basic webhook → database → sync pattern
+- Add complexity as you validate
+
+**2. Test with sandbox accounts:**
+- Shopify: Development store
+- Etsy: Test shop with API sandbox mode
+- Never test with production inventory
+
+**3. Implement safety from day one:**
+- Price bounds before ML pricing
+- Inventory limits before automation
+- Manual approval workflows
+- Kill switches for all automation
+
+**4. Monitor everything:**
+- Log all API calls and responses
+- Track sync success/failure rates
+- Alert on anomalies immediately
+- Build dashboards early
+
+**5. Document as you build:**
+- API integration guides
+- Architecture decision records
+- Runbooks for common issues
+- Configuration documentation
+
+---
+
+## Conclusion
+
+The APEG/PEG gemstone business automation system requires a robust multi-platform integration architecture combining real-time inventory synchronization, intelligent decision engines, and comprehensive safety mechanisms. The critical path to MVP focuses on establishing reliable Shopify-Etsy sync with proper error handling and rate limiting, while leaving advanced ML features for post-MVP iterations.
+
+**Key Success Factors:**
+- Centralized inventory as single source of truth
+- Idempotent operations to prevent data corruption
+- Comprehensive error handling and retry logic
+- Safety bounds on all automated decisions
+- Progressive rollout with monitoring
+
+**Immediate Next Steps:**
+1. Gain access to PEG repository for codebase audit
+2. Set up development environment with Shopify and Etsy sandbox accounts
+3. Implement OAuth2 flows and basic API clients
+4. Build core inventory sync functionality
+5. Deploy monitoring and alerting infrastructure
+
+This architecture provides a scalable foundation for gemstone jewelry business automation while maintaining data integrity and operational safety across multiple sales channels.
