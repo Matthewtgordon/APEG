@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.apeg_core.feedback.analyzer import FeedbackAnalyzer
+from src.apeg_core.feedback.mapping_enrichment import enrich_strategy_tag_mappings
 from src.apeg_core.feedback.schema import init_feedback_schema
 from src.apeg_core.feedback.version_control import SEOVersionControl
 from src.apeg_core.metrics.schema import init_database
@@ -66,6 +67,27 @@ def load_config() -> dict:
     }
 
 
+def _load_strategy_catalog() -> list[str]:
+    catalog_path = os.getenv(
+        "STRATEGY_TAG_CATALOG", "data/metrics/strategy_tags.json"
+    )
+    catalog_file = Path(catalog_path)
+
+    if not catalog_file.exists():
+        raise FileNotFoundError(
+            f"Strategy catalog not found: {catalog_path}. "
+            "Create it before running the feedback loop."
+        )
+
+    with open(catalog_file, encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    tags = data.get("strategy_tags")
+    if not isinstance(tags, list):
+        raise ValueError("strategy_tags must be a list in strategy tag catalog")
+
+    return tags
+
 def _write_decision_log(log_path: Path, payload: dict) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "a", encoding="utf-8") as handle:
@@ -86,6 +108,13 @@ async def run_analysis(db_conn: sqlite3.Connection, config: dict, run_id: str) -
     start_date = end_date - timedelta(days=config["window_days"])
 
     logger.info("Analysis window: %s to %s", start_date, end_date)
+
+    strategy_catalog = _load_strategy_catalog()
+    enriched = enrich_strategy_tag_mappings(
+        db_conn, strategy_catalog, start_date, end_date
+    )
+    if enriched:
+        logger.info("Enriched %s strategy_tag mappings before analysis", enriched)
 
     analyzer = FeedbackAnalyzer(db_conn, config)
 

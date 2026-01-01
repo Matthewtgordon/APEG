@@ -144,3 +144,14 @@ class StrategyTagMapper:
             ),
         )
         self.db_conn.commit()
+
+    def parse_name(self, name: str) -> tuple[Optional[str], float]:
+        """Parse strategy_tag from a raw campaign/ad name.
+
+        Args:
+            name: Campaign or ad name
+
+        Returns:
+            (strategy_tag, confidence) or (None, 0.0)
+        """
+        return self._parse_from_name(name)
