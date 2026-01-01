@@ -25,7 +25,9 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
 
 ## Progress
 
-- [ ] (pending) Verify baseline: all existing tests pass
+- [x] (2025-01-01 04:50Z) Verify baseline: discovered 1 failing test + 5 warnings
+- [x] (2025-01-01 04:55Z) Fixed test_poll_status_completed: lock reference was cleared after release
+- [x] (2025-01-01 04:58Z) Fixed unawaited coroutine warnings: raise_for_status is sync, not async
 - [ ] (pending) Phase 0: Complete environment parity check
 - [ ] (pending) Phase 3: Execute TEST-N8N-03 (live execution with background job proof)
 - [ ] (pending) Phase 4: Run TEST-META-01 (Meta API smoke test)
@@ -38,13 +40,31 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
 
 ## Surprises & Discoveries
 
-(Update as you work)
+- **Observation:** test_poll_status_completed failed with AttributeError: 'NoneType' object has no attribute 'release'
+  **Evidence:** The test asserted `bulk_client._current_lock.release.called` but `_release_lock_best_effort()` sets `_current_lock = None` after releasing (correct behavior)
+  **Resolution:** Capture mock lock reference before calling poll_status, assert on captured reference
+
+- **Observation:** 5 RuntimeWarnings about unawaited coroutines for `raise_for_status()`
+  **Evidence:** `RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited` on line 309 of bulk_client.py
+  **Resolution:** Added `mock_response.raise_for_status = MagicMock()` to all affected tests (aiohttp's raise_for_status is sync, not async)
+
+- **Observation:** Ubuntu 24.04 uses PEP 668 externally-managed Python
+  **Evidence:** `pip install` fails with "externally-managed-environment" even inside .venv when using system pip
+  **Resolution:** Use `python -m pip install` or ensure venv pip is in PATH first
 
 ---
 
 ## Decision Log
 
-(Record decisions as they arise)
+- **Decision:** Fix test assertions to use captured mock references instead of instance attributes
+  **Rationale:** When implementation correctly clears state after use (e.g., `_current_lock = None`), tests must capture references before the operation
+  **Alternatives Considered:** Modifying implementation to not clear lock (rejected: clearing is correct behavior)
+  **Date:** 2025-01-01
+
+- **Decision:** Add `raise_for_status = MagicMock()` to all AsyncMock responses
+  **Rationale:** aiohttp's `raise_for_status()` is synchronous, but AsyncMock makes all methods return coroutines by default
+  **Alternatives Considered:** Using spec= parameter (rejected: more complex for minimal benefit)
+  **Date:** 2025-01-01
 
 ---
 

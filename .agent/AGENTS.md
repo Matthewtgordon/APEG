@@ -56,9 +56,20 @@ VERIFIED: Stage 2 tests confirm tag preservation
 
 ## Commands
 
+### Virtual Environment (REQUIRED FIRST)
+```bash
+# ALWAYS activate venv before running any Python commands
+# Ubuntu 24.04+ uses PEP 668 externally-managed Python
+cd /path/to/APEG
+source .venv/bin/activate      # Or: . .venv/bin/activate
+
+# Verify you're in venv (prompt should show (.venv))
+which python                    # Should show: /path/to/APEG/.venv/bin/python
+```
+
 ### Test Execution
 ```bash
-# ALWAYS run from project root with PYTHONPATH
+# ALWAYS run from project root with PYTHONPATH (venv must be active)
 PYTHONPATH=. pytest -v                          # All tests
 PYTHONPATH=. pytest tests/unit/ -v              # Unit tests only
 PYTHONPATH=. pytest tests/integration/ -v       # Integration (requires Redis + .env)
