@@ -1,10 +1,34 @@
 # Integration Architecture Specification
 ## EcomAgent + APEG + Advertising Agent
 
+> **📍 Quick Links:** [Main README](../README.md) | [Project Plan](PROJECT_PLAN_ACTIVE.md) | [Environment Setup](ENVIRONMENT.md) | [Docs Index](README.md)
+
 Version: 1.4.1  
 **Date:** 2025-12-29  
 **Status:** PRODUCTION READY (Demo→Live)  
 **Author:** Matticulous + Claude  
+
+## 📋 Table of Contents
+
+### Core Sections
+1. [System Overview](#1-system-overview)
+2. [Data Models & Schemas](#2-data-models--schemas)
+3. [Component Integration Patterns](#3-component-integration-patterns)
+4. [Workflow Orchestration](#4-workflow-orchestration)
+5. [Shopify Integration](#5-shopify-integration)
+6. [Meta Ads Integration](#6-meta-ads-integration)
+7. [Metrics & Attribution](#7-metrics--attribution)
+8. [n8n Integration](#8-n8n-integration)
+9. [Security & Audit](#9-security--audit)
+
+### Appendices
+- [Appendix A: API Endpoint Reference](#appendix-a-api-endpoint-reference)
+- [Appendix B: Error Handling Matrix](#appendix-b-error-handling-matrix)
+- [Appendix C: Data Schema SQL](#appendix-c-data-schema-sql)
+- [Appendix D: CI/CD Pipeline](#appendix-d-cicd-pipeline)
+- [Appendix E: Rollback Procedures](#appendix-e-rollback-procedures)
+- [Appendix F: Demo→Live Swap Checklist](#appendix-f-demolive-swap-checklist)
+- [Appendix G: Rate Limit Strategy](#appendix-g-rate-limit-strategy)
 
 ---
 
