@@ -1,5 +1,22 @@
 # n8n Workflow Configuration Guide - APEG Integration
 
+> **📍 Quick Links:** [Main README](../README.md) | [API Usage](API_USAGE.md) | [Environment Setup](ENVIRONMENT.md) | [Docs Index](README.md)
+
+**Purpose:** Configure n8n to trigger APEG SEO update jobs  
+**Last Updated:** 2025-12-30
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Prerequisites](#1-prerequisite-n8n-environment-variables)
+- [Create n8n Credential](#2-create-n8n-credential-header-auth)
+- [HTTP Request Node Configuration](#3-http-request-node-configuration-apeg-api-call)
+- [Array Typing Issue (Critical)](#4-array-typing-issue-critical)
+- [Testing](#5-testing-workflow-execution)
+- [Troubleshooting](#6-troubleshooting)
+
+---
+
 ## Overview
 
 This guide configures an n8n HTTP Request workflow to submit SEO/tag update jobs to the APEG FastAPI endpoint (`POST /api/v1/jobs/seo-update`).

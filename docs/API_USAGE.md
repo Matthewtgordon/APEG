@@ -1,5 +1,25 @@
 # APEG API Usage Guide
 
+> **📍 Quick Links:** [Main README](../README.md) | [Environment Setup](ENVIRONMENT.md) | [n8n Config](N8N_WORKFLOW_CONFIG.md) | [Docs Index](README.md)
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Base URL](#base-url)
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+  - [POST /api/v1/jobs/seo-update](#post-apiv1jobsseo-update)
+- [Safe Write Behavior](#safe-write-behavior)
+- [Dry Run Mode](#dry-run-mode)
+- [Background Execution](#background-execution)
+- [Examples](#examples)
+  - [n8n HTTP Request Node](#example-n8n-http-request-node)
+  - [curl](#example-curl)
+- [Running the Server](#running-the-server)
+- [Health Check](#health-check)
+
+---
+
 ## Overview
 The APEG API provides HTTP endpoints for n8n to enqueue long-running Shopify bulk operations without blocking.
 
