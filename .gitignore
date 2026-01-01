@@ -12,3 +12,5 @@ data/metrics/raw/
 
 # Python cache
 __pycache__/
+
+.vscode
