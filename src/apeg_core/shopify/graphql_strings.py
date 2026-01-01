@@ -91,3 +91,16 @@ QUERY_PRODUCTS_CURRENT_STATE = """
   }
 }
 """
+
+QUERY_PRODUCT_BY_ID = """
+query ProductById($id: ID!) {
+  product(id: $id) {
+    id
+    tags
+    seo {
+      title
+      description
+    }
+  }
+}
+"""

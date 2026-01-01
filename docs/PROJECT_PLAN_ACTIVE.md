@@ -230,26 +230,32 @@ grep -R "APEG_API_KEY" .env*.example
 - [X] Done 12.31: Unit tests (diagnosis matrix, analyzer logic)
 
 #### Part 2: LLM Integration & Job Emission (BLOCKED)
-- [ ] ToDo: Claude API integration for Challenger generation
+- [X] Done 01.01: Claude API integration for Challenger generation (implementation complete; runtime requires ANTHROPIC_API_KEY)
   - Requires ANTHROPIC_API_KEY configuration
   - Implement async LLM client with retry logic
   - Integrate prompt builder + output validation
-- [ ] ToDo: Phase 3 job emission implementation
+- [X] Done 01.01: Phase 3 job emission implementation (implementation complete; runtime requires APEG_API_KEY/APEG_API_BASE_URL)
   - POST to /api/v1/jobs/seo-update
   - Track phase3_job_id in seo_versions
   - Rollback job emission (restore Champion)
-- [ ] ToDo: Propose mode implementation
+- [X] Done 01.01: Propose mode implementation (implementation complete; runtime requires Shopify + LLM credentials)
   - Load candidates from analyzer
   - Generate Challengers via LLM
   - Create seo_versions proposals
   - Require approval workflow
-- [ ] ToDo: Execute mode implementation
+- [X] Done 01.01: Execute mode implementation (implementation complete; runtime requires Phase 3 API access)
   - Approve -> emit Phase 3 jobs
   - Mark as applied with evaluation window
   - Record job_id
+- [ ] ToDo: Production readiness runbook
+  - Ensure FEEDBACK_ALLOW_DUMMY_PRODUCTS=false and FEEDBACK_USE_STUB_LLM=false in LIVE/DEMO runs
+  - Run propose with real Shopify product IDs + Anthropic key
+  - Run execute with reachable APEG_API_BASE_URL + Redis
+  - Run evaluate after evaluation window completes
+  - Run integration test: `PYTHONPATH=. pytest tests/integration/test_feedback_loop_propose_integration.py -v`
 
 #### Part 3: Data Dependencies (BLOCKED - REQUIRES BACKFILL)
-- [ ] ToDo: Populate strategy_tag_mappings table
+- [ ] ToDo: Populate strategy_tag_mappings table (BLOCKED: requires live Meta data; enrichment logic implemented)
   - Method A: Track APEG ad creation (future)
   - Method B: Parse existing campaign/ad names
   - Method C: Fetch utm_campaign from ad URLs
