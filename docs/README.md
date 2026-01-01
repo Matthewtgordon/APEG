@@ -171,6 +171,6 @@ See [ENVIRONMENT.md](ENVIRONMENT.md) for configuration details and swap procedur
 
 ---
 
-**Last Updated:** 2026-01-01  
+**Last Updated:** 2025-12-30  
 **Spec Version:** 1.4.1  
 **Status:** Active Development
