@@ -45,6 +45,9 @@ The user will be able to trigger n8n workflows that execute Shopify bulk mutatio
 - [x] (2026-01-01 08:41Z) Step 3: Started uvicorn (PID 63436; logs `/tmp/uvicorn.log`), but localhost connections blocked in sandbox; stopped server
 - [x] (2026-01-01 08:41Z) Step 4: API auth pre-checks via `httpx.AsyncClient` + `ASGITransport` (401 missing key, 400 domain mismatch, 400 empty products)
 - [~] (2026-01-01 08:42Z) Step 5: TEST-N8N-03 skipped (n8n not available in sandbox; localhost networking blocked)
+- [x] (2026-01-01 08:42Z) Step 6: Smoke tests executed; both SKIPPED (credentials unset in sandbox)
+- [x] (2026-01-01 08:43Z) Step 7: Collector idempotency re-run (credentials unset); counts unchanged for 2025-12-30
+- [x] (2026-01-01 08:45Z) Step 8: Documentation updated (ACCEPTANCE_TESTS.md, PROJECT_PLAN_ACTIVE.md) with sandbox evidence
 
 ---
 

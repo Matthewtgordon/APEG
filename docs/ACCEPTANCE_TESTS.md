@@ -580,6 +580,14 @@ tests/smoke/test_meta_api.py::test_meta_insights_fields SKIPPED (No data returne
 SKIPPED [1] tests/smoke/test_meta_api.py:57: No data returned for test date (no ad spend)
 ```
 
+**Evidence (2026-01-01 08:42Z):**
+```bash
+PYTHONPATH=. pytest tests/smoke/test_meta_api.py -v -rs
+tests/smoke/test_meta_api.py::test_meta_insights_fields SKIPPED (META_ACCESS_TOKEN not set)
+SKIPPED [1] tests/smoke/test_meta_api.py:16: META_ACCESS_TOKEN not set
+```
+Note: Credentials intentionally unset in sandbox (network restricted; avoid secret exposure).
+
 ---
 
 ### TEST-SHOPIFY-01: Shopify Attribution Field Validation (SMOKE TEST)
@@ -605,6 +613,14 @@ PYTHONPATH=. ./venv/bin/python -m pytest tests/smoke/test_shopify_attribution.py
 tests/smoke/test_shopify_attribution.py::test_shopify_attribution_fields SKIPPED (No orders found in test date range)
 SKIPPED [1] tests/smoke/test_shopify_attribution.py:107: No orders found in test date range
 ```
+
+**Evidence (2026-01-01 08:42Z):**
+```bash
+PYTHONPATH=. pytest tests/smoke/test_shopify_attribution.py -v -rs
+tests/smoke/test_shopify_attribution.py::test_shopify_attribution_fields SKIPPED
+SKIPPED [1] tests/smoke/test_shopify_attribution.py:15: SHOPIFY_ADMIN_ACCESS_TOKEN not set
+```
+Note: Credentials intentionally unset in sandbox (network restricted; avoid secret exposure).
 
 ---
 
@@ -655,6 +671,24 @@ sqlite3 data/metrics.db "SELECT metric_date, source_name, status FROM collector_
 2025-12-30|meta|success
 2025-12-30|shopify|success
 ```
+
+**Evidence (2026-01-01 08:43Z):**
+```bash
+PYTHONPATH=. python scripts/run_metrics_collector.py --date 2025-12-30 -v
+2026-01-01 08:43:43 [INFO] src.apeg_core.metrics.collector: Starting collection for 2025-12-30
+2026-01-01 08:43:43 [WARNING] src.apeg_core.metrics.collector: Meta credentials not configured, skipping Meta collection
+2026-01-01 08:43:43 [WARNING] src.apeg_core.metrics.collector: Shopify credentials not configured, skipping Shopify collection
+2026-01-01 08:43:43 [INFO] src.apeg_core.metrics.collector: Collection complete for 2025-12-30
+
+sqlite3 data/metrics.db "SELECT COUNT(*) FROM metrics_meta_daily WHERE metric_date='2025-12-30';"
+3
+sqlite3 data/metrics.db "SELECT COUNT(*) FROM order_attributions WHERE created_at LIKE '2025-12-30%';"
+4
+sqlite3 data/metrics.db "SELECT metric_date, source_name, status FROM collector_state WHERE metric_date='2025-12-30' ORDER BY source_name;"
+2025-12-30|meta|success
+2025-12-30|shopify|success
+```
+Note: Credentials intentionally unset in sandbox (network restricted; avoid secret exposure).
 
 ---
 

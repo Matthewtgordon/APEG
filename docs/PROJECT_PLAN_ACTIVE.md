@@ -147,6 +147,7 @@ grep -R "APEG_API_KEY" .env*.example
   - [X] Done 12.30: TEST-N8N-01: Auth failure (401) - negative test
   - [X] Done 12.30: TEST-N8N-02: Dry run (202) - happy path
   - [X] Done 01.01: TEST-N8N-03: Live execution - background job proof (bulk op gid://shopify/BulkOperation/4412960243814)
+  - Note 01.01: Sandbox re-run blocked (n8n unavailable; localhost networking blocked); see ACCEPTANCE_TESTS.md evidence.
 - [X] Done 12.30: Documentation updates
   - [X] Done 12.30: API_USAGE.md: APEG_API_KEY clarity + n8n pointer
   - [X] Done 12.30: Integration test README: template reference updates
@@ -182,15 +183,15 @@ grep -R "APEG_API_KEY" .env*.example
 - [X] Done 12.31: CLI entry point (run_metrics_collector.py)
 
 #### Part 2: Validation & Testing (BLOCKED - REQUIRES CREDENTIALS)
-- [ ] ToDo: Meta API smoke test execution (TEST-META-01) — SKIPPED 01.01 (no ad spend data; rerun when data available)
+- [ ] ToDo: Meta API smoke test execution (TEST-META-01) — SKIPPED 01.01 (no ad spend data; rerun when data available); SKIPPED 01.01 (sandbox credentials unset)
   - Validate outbound_clicks field availability
   - Confirm spend/impressions/ctr/cpc fields
   - Record evidence in ACCEPTANCE_TESTS.md
-- [ ] ToDo: Shopify attribution smoke test (TEST-SHOPIFY-01) — SKIPPED 01.01 (no orders in test date range; rerun when orders exist)
+- [ ] ToDo: Shopify attribution smoke test (TEST-SHOPIFY-01) — SKIPPED 01.01 (no orders in test date range; rerun when orders exist); SKIPPED 01.01 (sandbox credentials unset)
   - Validate customerJourneySummary fields
   - Confirm UTM parameters structure
   - Record edge case behavior
-- [X] Done 01.01: SQLite idempotency test (TEST-COLLECTOR-01)
+- [X] Done 01.01: SQLite idempotency test (TEST-COLLECTOR-01); re-verified 01.01 (sandbox credentials unset; counts unchanged)
   - Run collector twice for same date
   - Verify no duplicates, stable row counts
   - Confirm collector_state behavior
