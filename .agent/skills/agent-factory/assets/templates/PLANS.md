@@ -1,5 +1,5 @@
 # ExecPlan Protocol
-# Version: 1.1.0 | Methodology definition
+# Version: {{PLANS_VERSION}} | Methodology definition
 
 ## When to Create an ExecPlan
 Create when:
