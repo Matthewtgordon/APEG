@@ -7,29 +7,30 @@ description: {{SKILL_DESCRIPTION}}
 
 {{SKILL_OVERVIEW}}
 
-## Quick Start (copy-paste)
+## Trigger Phrases
+{{TRIGGER_PHRASES_BLOCK}}
+
+## Quick Start (Copy-Paste)
 Command:
-    {{QUICK_START_COMMAND}}
+```
+{{QUICK_START_COMMAND}}
+```
 
 Expected:
-    {{QUICK_START_EXPECTED}}
+```
+{{QUICK_START_EXPECTED}}
+```
 
-## Inputs (no guessing)
-- Required files: {{REQUIRED_FILES}}
-- Required data: {{REQUIRED_DATA}}
+## Inputs and Outputs
+- Inputs: {{INPUTS_SUMMARY}}
+- Outputs: {{OUTPUTS_SUMMARY}}
 - Preconditions: {{PRECONDITIONS}}
 
-## Scripts (exact signatures)
+## Scripts
 {{SCRIPTS_BLOCK}}
 
-## Workflow (short)
-{{WORKFLOW_BLOCK}}
-
-## References (load only when needed)
-{{REFERENCES_BLOCK}}
-
-## Assets
-{{ASSETS_BLOCK}}
-
-## Examples (copy-paste)
+## Examples
 {{EXAMPLES_BLOCK}}
+
+## References
+{{REFERENCES_BLOCK}}

@@ -12,9 +12,10 @@
     "architecture": "Async API + Worker"
   },
   "agents": {
+    "autonomy_mode": "FULL",
     "always": [
       "Use repository-relative paths in responses",
-      "Update ExecPlan progress after each step"
+      "Run test.smoke after every code change"
     ],
     "ask_first": [
       "Adding new dependencies to requirements.txt",
@@ -37,11 +38,36 @@
     "immediate_why": "Missing validation caused 400s in production",
     "execplan_path": ".agent/plans/EXECPLAN-P1-validation.md",
     "last_checkpoint": "2025-01-05 12:00Z",
-    "red_lines": [
+    "phase": "1",
+    "phase_name": "API",
+    "status": "IN_PROGRESS",
+    "constraints": [
       "Do not add GPL dependencies",
       "Do not bypass auth checks"
     ],
-    "blockers": ["None"]
+    "blockers": ["None"],
+    "preflight": {
+      "cwd": "/path/to/ExampleProject",
+      "interpreter": "/path/to/ExampleProject/.venv/bin/python",
+      "python_version": "3.11",
+      "venv_active": "true",
+      "env_exists": "false",
+      "git_status": "clean",
+      "branch": "main",
+      "test_cmd_found": "true",
+      "secrets_mode": "SKIP",
+      "safe_mock_ok": "false",
+      "last_preflight": "2025-01-05 14:00Z"
+    },
+    "scope": {
+      "goal": "Add validation to create endpoint",
+      "non_goals": "No schema changes",
+      "risk_level": "LOW",
+      "test_plan": "test.smoke"
+    },
+    "pending_inputs": [
+      {"question": "Need live API key?", "needed_for": "integration tests"}
+    ]
   },
   "runbook": {
     "metadata": {
@@ -51,35 +77,56 @@
     },
     "commands": [
       {
-        "id": "dev.server",
+        "id": "run",
         "action": "Start dev server",
         "command": "PYTHONPATH=. uvicorn src.main:app --reload --port 8000",
-        "scope": "dev",
         "preconditions": "deps installed",
-        "expected": "Uvicorn running on http://127.0.0.1:8000",
-        "side_effects": "opens port 8000",
-        "safe": "yes"
+        "expected": "Uvicorn running"
       },
       {
-        "id": "test.all",
-        "action": "Run all tests",
-        "command": "PYTHONPATH=. pytest -v",
-        "scope": "test",
+        "id": "lint",
+        "action": "Lint source",
+        "command": "ruff check src/",
         "preconditions": "deps installed",
-        "expected": "N passed",
-        "side_effects": "none",
-        "safe": "yes"
+        "expected": "No lint errors"
       }
     ],
     "command_args": [
       {"id": "test.single", "args": "{PATH}", "example": "PYTHONPATH=. pytest tests/unit/test_api.py -v"}
     ],
+    "test_tiers": [
+      {
+        "tier": "SMOKE",
+        "id": "test.smoke",
+        "command": "PYTHONPATH=. pytest tests/unit/ -v",
+        "preconditions": "deps installed",
+        "fallback": "ASK"
+      },
+      {
+        "tier": "TARGETED",
+        "id": "test.targeted",
+        "command": "PYTHONPATH=. pytest tests/ -k {MODULE} -v",
+        "preconditions": "deps installed",
+        "fallback": "Run test.smoke"
+      },
+      {
+        "tier": "FULL",
+        "id": "test.full",
+        "command": "PYTHONPATH=. pytest -v",
+        "preconditions": "deps + .env",
+        "fallback": "Run test.smoke and warn"
+      }
+    ],
+    "environment_modes": [
+      {"mode": "LIVE", "condition": ".env exists", "behavior": "Run all tests"},
+      {"mode": "MOCK", "condition": "SAFE_MOCK_OK=true", "behavior": "Use mock fixtures"},
+      {"mode": "SKIP", "condition": "no .env", "behavior": "Skip integration"}
+    ],
     "phase_scripts": [
       {
-        "id": "phase-1.migrate",
+        "phase": "1",
         "script": "scripts/migrate.py",
         "command": "PYTHONPATH=. python scripts/migrate.py --dry-run",
-        "scope": "phase-1",
         "preconditions": "db reachable",
         "expected": "Migration plan printed"
       }
@@ -88,20 +135,8 @@
       {
         "pattern": "(Connection refused|ECONNREFUSED)",
         "diagnosis": "Service not running",
-        "next_command": "lsof -i :8000"
+        "next_command": "python -c \"import socket; s=socket.socket(); s.connect(('127.0.0.1',8000))\""
       }
-    ],
-    "services": [
-      {
-        "service": "Postgres",
-        "purpose": "Primary database",
-        "endpoint": "postgres://localhost:5432/app",
-        "auth": "user/password",
-        "health_command": "pg_isready -h localhost"
-      }
-    ],
-    "maintenance": [
-      {"task": "Refresh test data", "frequency": "weekly", "command": "PYTHONPATH=. python scripts/seed.py", "safe": "yes"}
     ]
   },
   "status": {
@@ -114,11 +149,10 @@
       "phase": "1",
       "name": "API",
       "goal": "Requests validated and error handling consistent",
-      "evidence_targets": [
-        {"label": "TEST-P1-01", "path": "docs/ACCEPTANCE_TESTS.md#P1"}
-      ],
+      "objectives": ["Add request validation", "Normalize error responses"],
+      "evidence": ["docs/ACCEPTANCE_TESTS.md#P1"],
       "risks": ["Validation logic duplicated in handlers"],
-      "notes": ["Keep schema changes behind Ask First"]
+      "blockers": ["None"]
     }
   },
   "skills": [
@@ -127,35 +161,43 @@
       "title": "PDF Reporting",
       "description": "Generate PDF reports and fill templates. Use when user asks to create or update PDF reports, populate forms, or extract tables.",
       "overview": "Produce PDF outputs from structured data and templates.",
+      "triggers": ["create PDF report", "fill PDF form", "extract PDF table"],
       "quick_start": {
         "command": "python3 scripts/render_report.py input.json output.pdf",
         "expected": "Report written to output.pdf"
       },
       "inputs": {
-        "required_files": ["input.json"],
-        "required_data": "JSON report payload",
-        "preconditions": "report templates present"
+        "inputs": ["input.json", "report template"],
+        "outputs": ["output.pdf"],
+        "preconditions": "templates present"
       },
       "scripts": [
         {
           "path": "scripts/render_report.py",
           "purpose": "Render a PDF report",
-          "required_args": "<input> <output>",
-          "optional_args": "[--template TEMPLATE]",
           "command": "python3 scripts/render_report.py <input> <output>",
+          "args": "<input> <output>",
           "expected": "PDF created"
         }
       ],
-      "workflow": ["Validate input JSON", "Render PDF", "Verify output"],
-      "references": [
-        {"file": "references/templates.md", "when": "template selection or layout rules needed"}
-      ],
-      "assets": [
-        {"file": "assets/report-template.json", "purpose": "Base report layout"}
-      ],
       "examples": [
         {"name": "Render report", "command": "python3 scripts/render_report.py input.json report.pdf", "output": "Report written to report.pdf"}
+      ],
+      "references": [
+        {"file": "references/templates.md", "when": "template selection or layout rules needed"}
       ]
     }
-  ]
+  ],
+  "system_instruction": {
+    "path": "System_Instruction_Candidate.md",
+    "kb_templates": [
+      "template-agents-md.md",
+      "template-governance-md.md",
+      "template-context-md.md",
+      "template-plans-md.md",
+      "template-runbook-md.md",
+      "template-project-status-md.md",
+      "template-skill-md.md"
+    ]
+  }
 }

@@ -1,6 +1,6 @@
 ---
 name: agent-factory
-description: Generate project agent configuration files (AGENTS.md, .agent/GOVERNANCE.md, .agent/PLANS.md, .agent/CONTEXT.md, docs/RUNBOOK.md, docs/PROJECT_STATUS.md, and optional .agent/skills/*/SKILL.md) from a structured spec. Use when the user asks to create or update agent config files, wants an "Agent Factory" setup, or needs repeatable template-based generation.
+description: Generate project agent configuration files (AGENTS.md, .agent/GOVERNANCE.md, .agent/PLANS.md, .agent/CONTEXT.md, docs/RUNBOOK.md, docs/PROJECT_STATUS.md, and optional .agent/skills/*/SKILL.md or SYSTEM_INSTRUCTION.md) from a structured spec. Use when the user asks to create or update agent config files, wants an "Agent Factory" setup, or needs repeatable template-based generation.
 ---
 
 # Agent Factory
@@ -12,12 +12,12 @@ Command:
     python3 scripts/render_agent_factory.py --spec references/spec.example.json --output-root /path/to/repo
 
 Expected:
-    Wrote 4 required files (+ optional files if provided in spec)
+    Wrote N file(s)
 
 ## Inputs (no guessing)
 - Required file: JSON spec (see `references/spec.md`)
 - Preconditions: Python 3.8+, write access to target repo
-- Optional sections: `runbook`, `status`, `skills` (omit to skip those files)
+- Optional sections: `runbook`, `status`, `skills`, `system_instruction`
 
 ## Scripts (exact signatures)
 ### scripts/render_agent_factory.py
@@ -40,3 +40,4 @@ Expected:
 
 ## Assets
 - `assets/templates/` - Source templates used by the renderer
+- `assets/templates/SYSTEM_INSTRUCTION.md` - Optional Agent Factory system instruction template

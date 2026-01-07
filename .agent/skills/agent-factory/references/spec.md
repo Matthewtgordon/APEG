@@ -18,14 +18,40 @@ agents.always[]
 agents.ask_first[]
 agents.never[]
 agents.key_files[]            # [{"purpose": "...", "path": "..."}]
+agents.autonomy_mode          # FULL | PARTIAL | MANUAL (optional)
 
 context.generated             # YYYY-MM-DD HH:MMZ
 context.immediate_action
 context.immediate_file
-context.immediate_why
+context.immediate_why         # optional
 context.execplan_path
 context.last_checkpoint       # YYYY-MM-DD HH:MMZ
-context.red_lines[]
+context.phase
+context.phase_name
+context.status                # IN_PROGRESS | BLOCKED | COMPLETE
+context.constraints[]         # short, high-signal constraints
+context.blockers[]            # optional
+
+context.preflight             # optional block (see below)
+context.scope                 # optional block (see below)
+context.pending_inputs[]      # optional list (see below)
+```
+
+### Optional Blocks
+
+```
+context.preflight: {
+  cwd, interpreter, python_version, venv_active, env_exists,
+  git_status, branch, test_cmd_found, secrets_mode, safe_mock_ok, last_preflight
+}
+
+context.scope: {
+  goal, non_goals, risk_level, test_plan
+}
+
+context.pending_inputs: [
+  {"question": "...", "needed_for": "..."}
+]
 ```
 
 ## Optional Sections
@@ -34,6 +60,7 @@ context.red_lines[]
 runbook                        # Generates docs/RUNBOOK.md
 status                         # Generates docs/PROJECT_STATUS.md
 skills[]                       # Generates .agent/skills/<name>/SKILL.md
+system_instruction             # Generates a System Instruction file
 ```
 
 If an optional section is omitted, that file is not generated.
@@ -46,15 +73,11 @@ If an optional section is omitted, that file is not generated.
     "name": "...",
     "updated": "YYYY-MM-DD",
     "one_liner": "...",
-    "stack": {
-      "language": "...",
-      "version": "...",
-      "framework": "...",
-      "database": "..."
-    },
+    "stack": {"language": "...", "version": "...", "framework": "...", "database": "..."},
     "architecture": "..."
   },
   "agents": {
+    "autonomy_mode": "FULL",
     "always": ["..."],
     "ask_first": ["..."],
     "never": ["..."],
@@ -67,8 +90,14 @@ If an optional section is omitted, that file is not generated.
     "immediate_why": "...",
     "execplan_path": ".agent/plans/EXECPLAN-...md",
     "last_checkpoint": "YYYY-MM-DD HH:MMZ",
-    "red_lines": ["..."],
-    "blockers": ["None"]
+    "phase": "N",
+    "phase_name": "...",
+    "status": "IN_PROGRESS",
+    "constraints": ["..."],
+    "blockers": ["None"],
+    "preflight": {"cwd": "...", "interpreter": "...", "python_version": "3.x", "venv_active": "unknown"},
+    "scope": {"goal": "...", "non_goals": "...", "risk_level": "LOW", "test_plan": "test.smoke"},
+    "pending_inputs": [{"question": "...", "needed_for": "..."}]
   }
 }
 ```
@@ -79,13 +108,27 @@ If an optional section is omitted, that file is not generated.
 runbook: {
   metadata: {"repo_root": "...", "shell": "...", "env_file": "..."},
   commands: [
-    {"id": "test.all", "action": "Run all tests", "command": "...", "scope": "test", "preconditions": "...", "expected": "...", "side_effects": "...", "safe": "yes"}
+    {"id": "build", "action": "Build", "command": "...", "preconditions": "...", "expected": "..."}
   ],
   command_args: [{"id": "test.single", "args": "{PATH}", "example": "..."}],
-  phase_scripts: [{"id": "phase-1.migrate", "script": "scripts/migrate.py", "command": "...", "scope": "phase-1", "preconditions": "...", "expected": "..."}],
-  troubleshooting: [{"pattern": "...", "diagnosis": "...", "next_command": "..."}],
-  services: [{"service": "...", "purpose": "...", "endpoint": "...", "auth": "...", "health_command": "..."}],
-  maintenance: [{"task": "...", "frequency": "...", "command": "...", "safe": "yes"}]
+  test_tiers: [
+    {"tier": "SMOKE", "id": "test.smoke", "command": "...", "preconditions": "...", "fallback": "..."}
+  ],
+  environment_modes: [
+    {"mode": "LIVE", "condition": "...", "behavior": "..."}
+  ],
+  phase_scripts: [
+    {"phase": "1", "script": "scripts/migrate.py", "command": "...", "preconditions": "...", "expected": "..."}
+  ],
+  troubleshooting: [
+    {"pattern": "...", "diagnosis": "...", "next_command": "..."}
+  ],
+  services: [
+    {"service": "...", "purpose": "...", "endpoint": "...", "auth": "...", "health_command": "..."}
+  ],
+  maintenance: [
+    {"task": "...", "frequency": "...", "command": "...", "safe": "yes"}
+  ]
 }
 ```
 
@@ -101,9 +144,10 @@ status: {
     "phase": "N",
     "name": "...",
     "goal": "...",
-    "evidence_targets": [{"label": "...", "path": "..."}],
+    "objectives": ["..."],
+    "evidence": ["..."],
     "risks": ["..."],
-    "notes": ["..."]
+    "blockers": ["..."]
   }
 }
 ```
@@ -117,22 +161,35 @@ skills: [
     "title": "PDF Reporting",
     "description": "...",
     "overview": "...",
+    "triggers": ["..."],
     "quick_start": {"command": "...", "expected": "..."},
-    "inputs": {"required_files": ["..."], "required_data": "...", "preconditions": "..."},
+    "inputs": {"inputs": ["..."], "outputs": ["..."], "preconditions": "..."},
     "scripts": [
-      {
-        "path": "scripts/extract_text.py",
-        "purpose": "...",
-        "required_args": "<input>",
-        "optional_args": "[--verbose]",
-        "command": "python3 scripts/extract_text.py <input>",
-        "expected": "..."
-      }
+      {"path": "scripts/extract_text.py", "purpose": "...", "command": "...", "args": "...", "expected": "..."}
     ],
-    "workflow": ["Step 1", "Step 2"],
-    "references": [{"file": "references/forms.md", "when": "..."}],
-    "assets": [{"file": "assets/template.json", "purpose": "..."}],
-    "examples": [{"name": "Extract text", "command": "...", "output": "..."}]
+    "examples": [
+      {"name": "Extract", "command": "...", "output": "..."}
+    ],
+    "references": [
+      {"file": "references/forms.md", "when": "..."}
+    ]
   }
 ]
+```
+
+## System Instruction Section
+
+```
+system_instruction: {
+  path: "System_Instruction_Candidate.md",
+  kb_templates: [
+    "template-agents-md.md",
+    "template-governance-md.md",
+    "template-context-md.md",
+    "template-plans-md.md",
+    "template-runbook-md.md",
+    "template-project-status-md.md",
+    "template-skill-md.md"
+  ]
+}
 ```

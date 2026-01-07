@@ -1,8 +1,8 @@
 {
   "project": {
     "name": "APEG",
-    "updated": "2025-12-29",
-    "one_liner": "APEG orchestrates SEO updates, ad campaigns, and metrics feedback across Shopify using EcomAgent, N8N, and Meta Ads.",
+    "updated": "2026-01-06",
+    "one_liner": "APEG orchestrates SEO updates, ad campaigns, and metrics feedback across Shopify using EcomAgent, n8n, and Meta Ads.",
     "stack": {
       "language": "Python",
       "version": "3.11+",
@@ -12,161 +12,168 @@
     "architecture": "Async master orchestrator with sync agent wrappers (asyncio.to_thread)"
   },
   "agents": {
+    "autonomy_mode": "FULL",
     "always": [
-      "Wrap sync EcomAgent calls with asyncio.to_thread to preserve async architecture.",
-      "Use Shopify GraphQL SEO input object product.seo { title, description }.",
-      "Require APEG_ENV and APEG_ALLOW_WRITES=YES for any write path.",
-      "Keep human approval workflow (Google Sheets staging) in place for Shopify writes."
+      "Use commands only from docs/RUNBOOK.md",
+      "Run test.smoke after every code change",
+      "Wrap sync EcomAgent calls with asyncio.to_thread"
     ],
     "ask_first": [
-      "Add or change environment variables in .env.example.",
-      "Add new dependencies or change package strategy (EcomAgent packaging or pip installs).",
-      "Modify bulk operation sequencing or locking behavior.",
-      "Change Etsy integration approach (GPL isolation vs custom API)."
+      "Add or change environment variables in .env.example",
+      "Add new dependencies or change package strategy",
+      "Modify bulk operation sequencing or locking behavior"
     ],
     "never": [
-      "Import GPL-3.0 etsyv3 into the APEG codebase.",
-      "Bypass approval workflow for Shopify writes.",
-      "Use product.metafields.seo.title (invalid SEO field mapping).",
-      "Commit secrets or credentials."
+      "Import GPL-3.0 etsyv3 into APEG",
+      "Bypass approval workflow for Shopify writes",
+      "Commit secrets or credentials"
     ],
     "key_files": [
       {"purpose": "Entry point", "path": "src/apeg_core/main.py"},
       {"purpose": "SEO orchestrator", "path": "src/apeg_core/agents/seo_orchestrator.py"},
-      {"purpose": "Advertising agent", "path": "src/apeg_core/agents/advertising_agent.py"},
       {"purpose": "Metrics collector", "path": "src/apeg_core/metrics/collector.py"},
-      {"purpose": "DB schema", "path": "src/apeg_core/db/schema.sql"}
+      {"purpose": "Feedback loop", "path": "src/apeg_core/feedback/analyzer.py"},
+      {"purpose": "Tests", "path": "tests/"}
     ]
   },
   "context": {
-    "generated": "2026-01-06 05:15Z",
-    "immediate_action": "Update .env.example with any new required keys (no secrets).",
-    "immediate_file": ".env.example",
-    "immediate_why": "Environment parity is a Phase 0 gate in the integration spec (Section 1.8).",
+    "generated": "2026-01-06 07:28Z",
+    "immediate_action": "Update docs/PROJECT_PLAN_ACTIVE.md with Phase 0 evidence statuses",
+    "immediate_file": "docs/PROJECT_PLAN_ACTIVE.md",
+    "immediate_why": "Phase 0 evidence file exists; plan needs status update",
     "execplan_path": ".agent/plans/EXECPLAN-phase-0-cutover.md",
-    "last_checkpoint": "2026-01-06 05:15Z",
-    "red_lines": [
-      "No GPL-3.0 dependencies in APEG; isolate Etsy or use REST.",
-      "Do not bypass Google Sheets staging and human approval for Shopify writes.",
-      "Use product.seo { title, description } for Shopify GraphQL SEO updates.",
-      "Writes require APEG_ALLOW_WRITES=YES and APEG_ENV set."
+    "last_checkpoint": "2026-01-06 07:28Z",
+    "phase": "0",
+    "phase_name": "Config + Cutover Readiness",
+    "status": "IN_PROGRESS",
+    "constraints": [
+      "No GPL-3.0 dependencies in APEG",
+      "Do not bypass human approval for Shopify writes",
+      "Use product.seo { title, description } for Shopify SEO updates",
+      "Writes require APEG_ALLOW_WRITES=YES and APEG_ENV set"
     ],
-    "blockers": ["Etsy integration blocked by GPL-3.0 etsyv3 license."]
+    "blockers": ["Etsy integration blocked by GPL-3.0 etsyv3 license"],
+    "preflight": {
+      "cwd": "/home/matt/repos/APEG",
+      "interpreter": "unknown",
+      "python_version": "unknown",
+      "venv_active": "unknown",
+      "env_exists": "true",
+      "git_status": "unknown",
+      "branch": "unknown",
+      "test_cmd_found": "true",
+      "secrets_mode": "LIVE",
+      "safe_mock_ok": "false",
+      "last_preflight": "2026-01-06 07:28Z"
+    },
+    "scope": {
+      "goal": "Record Phase 0 evidence status and missing inputs",
+      "non_goals": "No code changes",
+      "risk_level": "LOW",
+      "test_plan": "test.smoke"
+    },
+    "pending_inputs": [
+      {"question": "Provide META_APP_SECRET", "needed_for": "Meta token validation"},
+      {"question": "Provide N8N_BASE_URL", "needed_for": "n8n credential check"}
+    ]
   },
   "runbook": {
     "metadata": {
       "repo_root": "/home/matt/repos/APEG",
       "shell": "bash",
-      "env_file": ".env.example"
+      "env_file": ".env"
     },
     "commands": [
       {
-        "id": "env.activate",
-        "action": "Activate venv",
-        "command": "source .venv/bin/activate",
-        "scope": "setup",
-        "preconditions": "venv exists",
-        "expected": "Shell prompt shows (.venv)",
-        "side_effects": "shell state changes",
-        "safe": "yes"
-      },
-      {
-        "id": "dev.server",
-        "action": "Start APEG API server (reload)",
+        "id": "run",
+        "action": "Start APEG API server",
         "command": "PYTHONPATH=. uvicorn src.apeg_core.main:app --reload --host 0.0.0.0 --port 8000",
-        "scope": "dev",
         "preconditions": "deps installed; env vars set",
-        "expected": "Uvicorn running on http://0.0.0.0:8000",
-        "side_effects": "opens port 8000",
-        "safe": "yes"
+        "expected": "Uvicorn running"
       },
       {
-        "id": "test.all",
-        "action": "Run full test suite",
-        "command": "PYTHONPATH=. pytest -v",
-        "scope": "test",
-        "preconditions": "deps installed; env set if needed",
-        "expected": "All tests pass",
-        "side_effects": "none",
-        "safe": "yes"
-      },
-      {
-        "id": "test.ci",
-        "action": "Run CI coverage gate",
-        "command": "pytest --cov=apeg --cov-fail-under=75",
-        "scope": "test",
+        "id": "lint",
+        "action": "Lint source",
+        "command": "ruff check src/",
         "preconditions": "deps installed",
-        "expected": "Coverage >= 75%",
-        "side_effects": "none",
-        "safe": "yes"
-      },
-      {
-        "id": "integration.safe_writes",
-        "action": "Verify Shopify safe writes (Phase 2 integration)",
-        "command": "PYTHONPATH=. python tests/integration/verify_phase2_safe_writes.py",
-        "scope": "integration",
-        "preconditions": "Redis running; DEMO safety gates",
-        "expected": "Exit 0",
-        "side_effects": "Shopify API calls",
-        "safe": "no"
-      },
-      {
-        "id": "ecomagent.install_editable",
-        "action": "Install EcomAgent as editable package",
-        "command": "cd ../EcomAgent && pip install -e .",
-        "scope": "integration",
-        "preconditions": "EcomAgent repo present",
-        "expected": "ecomagent installed",
-        "side_effects": "installs package",
-        "safe": "yes"
-      },
-      {
-        "id": "ecomagent.verify_import",
-        "action": "Verify EcomAgent import",
-        "command": "python -c \"from src.seo_engine.engine import SEOEngine; print('Import successful')\"",
-        "scope": "integration",
-        "preconditions": "EcomAgent installed",
-        "expected": "Import successful",
-        "side_effects": "none",
-        "safe": "yes"
+        "expected": "No lint errors"
       }
     ],
     "command_args": [
+      {"id": "test.single", "args": "{PATH}", "example": "PYTHONPATH=. pytest tests/unit/test_api_routes.py -v"}
+    ],
+    "test_tiers": [
       {
-        "id": "test.single",
-        "args": "{PATH}",
-        "example": "PYTHONPATH=. pytest tests/unit/test_api_routes.py -v"
+        "tier": "SMOKE",
+        "id": "test.smoke",
+        "command": "PYTHONPATH=. pytest tests/unit/ -v",
+        "preconditions": "deps installed",
+        "fallback": "ASK"
+      },
+      {
+        "tier": "TARGETED",
+        "id": "test.targeted",
+        "command": "PYTHONPATH=. pytest tests/ -k {MODULE} -v",
+        "preconditions": "deps installed",
+        "fallback": "Run test.smoke"
+      },
+      {
+        "tier": "FULL",
+        "id": "test.full",
+        "command": "PYTHONPATH=. pytest -v",
+        "preconditions": "deps + .env",
+        "fallback": "Run test.smoke and warn"
+      }
+    ],
+    "environment_modes": [
+      {"mode": "LIVE", "condition": ".env exists", "behavior": "Run all tests"},
+      {"mode": "MOCK", "condition": "SAFE_MOCK_OK=true", "behavior": "Use mock fixtures"},
+      {"mode": "SKIP", "condition": "no .env", "behavior": "Skip integration"}
+    ],
+    "phase_scripts": [
+      {
+        "phase": "0",
+        "script": "scripts/run_phase0_evidence.py",
+        "command": "PYTHONPATH=. python scripts/run_phase0_evidence.py",
+        "preconditions": "env configured",
+        "expected": "Evidence file updated"
+      }
+    ],
+    "troubleshooting": [
+      {
+        "pattern": "ModuleNotFoundError",
+        "diagnosis": "Missing dependency",
+        "next_command": "python -c \"import importlib.util; print(importlib.util.find_spec('{pkg}') is not None)\""
       }
     ]
   },
   "status": {
     "updated": "2026-01-06",
     "phases": [
-      {"phase": "0", "name": "Config + Cutover Readiness", "status": "IN_PROGRESS", "goal": "Environment parity and cutover readiness (Section 1.8, Appendix F).", "evidence": "docs/PROJECT_PLAN_ACTIVE.md"},
-      {"phase": "1", "name": "EcomAgent Standalone", "status": "COMPLETE", "goal": "EcomAgent runs standalone and produces JSONL outputs.", "evidence": "docs/ACCEPTANCE_TESTS.md"},
-      {"phase": "2", "name": "n8n Integration", "status": "IN_PROGRESS", "goal": "n8n stages SEO changes and executes Shopify bulk ops.", "evidence": "docs/ACCEPTANCE_TESTS.md"},
-      {"phase": "3", "name": "APEG Integration", "status": "IN_PROGRESS", "goal": "APEG orchestrates EcomAgent with async wrapper and locks.", "evidence": "docs/PROJECT_PLAN_ACTIVE.md"},
-      {"phase": "4", "name": "Metrics Collection", "status": "IN_PROGRESS", "goal": "Daily metrics collection into SQLite/JSONL.", "evidence": "docs/PROJECT_PLAN_ACTIVE.md"},
-      {"phase": "5", "name": "Feedback Loop", "status": "IN_PROGRESS", "goal": "Candidate selection and challenger generation operational.", "evidence": "docs/PROJECT_PLAN_ACTIVE.md"},
-      {"phase": "6", "name": "Advertising Agent", "status": "NOT_STARTED", "goal": "Meta campaign creation and tracking.", "evidence": "docs/PROJECT_PLAN_ACTIVE.md"}
+      {"phase": "0", "name": "Config + Cutover Readiness", "status": "IN_PROGRESS", "goal": "Environment parity and cutover readiness", "evidence": "docs/ACCEPTANCE_TESTS.md"},
+      {"phase": "1", "name": "EcomAgent Standalone", "status": "COMPLETE", "goal": "EcomAgent runs standalone and produces JSONL outputs", "evidence": "docs/ACCEPTANCE_TESTS.md"},
+      {"phase": "2", "name": "n8n Integration", "status": "IN_PROGRESS", "goal": "n8n stages SEO changes and executes Shopify bulk ops", "evidence": "docs/ACCEPTANCE_TESTS.md"}
     ],
     "current_phase": {
       "phase": "0",
       "name": "Config + Cutover Readiness",
-      "goal": "Enforce environment parity and complete demo-to-live readiness checks.",
-      "evidence_targets": [
-        {"label": "ENV-PARITY", "path": "docs/ENVIRONMENT.md"},
-        {"label": "ACCEPTANCE", "path": "docs/ACCEPTANCE_TESTS.md"}
-      ],
-      "risks": [
-        "Environment parity drift across .env templates",
-        "Demo-to-live cutover misconfiguration",
-        "Etsy integration blocked by GPL-3.0 etsyv3"
-      ],
-      "notes": [
-        "Current phase sourced from docs/PROJECT_PLAN_ACTIVE.md",
-        "Spec status: PRODUCTION READY (Demo-to-Live)"
-      ]
+      "goal": "Enforce environment parity and complete demo-to-live readiness checks",
+      "objectives": ["Update environment docs", "Record Phase 0 evidence"],
+      "evidence": ["docs/ACCEPTANCE_TESTS.md", "docs/evidence/phase0-evidence-20260106-0728Z.txt"],
+      "risks": ["Environment parity drift", "Cutover misconfiguration"],
+      "blockers": ["META_APP_SECRET missing", "N8N_BASE_URL missing"]
     }
+  },
+  "system_instruction": {
+    "path": "System_Instruction_Candidate.md",
+    "kb_templates": [
+      "template-agents-md.md",
+      "template-governance-md.md",
+      "template-context-md.md",
+      "template-plans-md.md",
+      "template-runbook-md.md",
+      "template-project-status-md.md",
+      "template-skill-md.md"
+    ]
   }
 }

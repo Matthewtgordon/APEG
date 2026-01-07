@@ -1,22 +1,19 @@
 # AGENTS.md - {{PROJECT_NAME}}
 # Version: 1.0.0 | Updated: {{UPDATED}}
 
-## Read First (Order & Authority)
-1. `.agent/GOVERNANCE.md` - immutable rules; highest authority
-2. `.agent/CONTEXT.md` - current status and immediate next action
-3. `docs/RUNBOOK.md` - commands reference
+## Read First
+1. `.agent/CONTEXT.md` - immediate state and next action
+2. `.agent/GOVERNANCE.md` - execution loop and protocols
+3. `docs/RUNBOOK.md` - command registry and test tiers
 4. `.agent/PLANS.md` - ExecPlan protocol
 
-If instructions conflict, stop and ask.
-
-## Overview
-{{ONE_SENTENCE_DESCRIPTION}}
-
-**Stack:** {{LANGUAGE}} {{VERSION}} | {{FRAMEWORK}} | {{DATABASE}}
-**Architecture:** {{ARCHITECTURE}}
+## Autonomy Mode
+Current: {{AUTONOMY_MODE}}
+- FULL: execute the loop autonomously; ask only for ASK FIRST items
+- PARTIAL: pause after each checkpoint for review
+- MANUAL: propose changes; user executes
 
 ## Boundaries
-If any ASK FIRST condition applies, stop and request approval. If any NEVER condition would be violated, do not proceed.
 
 ### ALWAYS
 {{ALWAYS_BLOCK}}
@@ -27,10 +24,14 @@ If any ASK FIRST condition applies, stop and request approval. If any NEVER cond
 ### NEVER
 {{NEVER_BLOCK}}
 
+## Context Pointers
+- `.agent/CONTEXT.md` - session boot and immediate next action
+- `.agent/GOVERNANCE.md` - non-negotiable protocols
+- `.agent/PLANS.md` - ExecPlan structure
+- `docs/RUNBOOK.md` - commands and test tiers
+- `docs/PROJECT_STATUS.md` - long-term roadmap (if present)
+
 ## Key Files
 | Purpose | Path |
 |---------|------|
 {{KEY_FILES_ROWS}}
-
-## Planning
-For complex tasks (>30 min, multi-file, or external integrations), create an ExecPlan following `.agent/PLANS.md`.

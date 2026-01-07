@@ -138,14 +138,22 @@ def validate_core(spec):
             raise SpecError(f"agents.key_files[{idx}] must be an object")
         ensure_str(entry.get("purpose"), f"agents.key_files[{idx}].purpose")
         ensure_str(entry.get("path"), f"agents.key_files[{idx}].path")
+    autonomy_mode = spec.get("agents", {}).get("autonomy_mode")
+    if autonomy_mode is not None:
+        ensure_str(autonomy_mode, "agents.autonomy_mode")
 
     ensure_str(get_path(spec, "context.generated"), "context.generated")
     ensure_str(get_path(spec, "context.immediate_action"), "context.immediate_action")
     ensure_str(get_path(spec, "context.immediate_file"), "context.immediate_file")
-    ensure_str(get_path(spec, "context.immediate_why"), "context.immediate_why")
     ensure_str(get_path(spec, "context.execplan_path"), "context.execplan_path")
     ensure_str(get_path(spec, "context.last_checkpoint"), "context.last_checkpoint")
-    ensure_list_of_str(require_list(spec, "context.red_lines"), "context.red_lines")
+    ensure_str(get_path(spec, "context.phase"), "context.phase")
+    ensure_str(get_path(spec, "context.phase_name"), "context.phase_name")
+    ensure_str(get_path(spec, "context.status"), "context.status")
+    ensure_list_of_str(require_list(spec, "context.constraints"), "context.constraints")
+    immediate_why = spec.get("context", {}).get("immediate_why")
+    if immediate_why is not None:
+        ensure_str(immediate_why, "context.immediate_why")
 
 
 def build_agents_mapping(spec):
@@ -167,6 +175,7 @@ def build_agents_mapping(spec):
         "FRAMEWORK": project["stack"]["framework"],
         "DATABASE": project["stack"]["database"],
         "ARCHITECTURE": project["architecture"],
+        "AUTONOMY_MODE": agents.get("autonomy_mode", "FULL"),
         "ALWAYS_BLOCK": bullet_block(agents.get("always", [])),
         "ASK_BLOCK": bullet_block(agents.get("ask_first", [])),
         "NEVER_BLOCK": bullet_block(agents.get("never", [])),
@@ -188,16 +197,54 @@ def build_context_mapping(spec):
     elif isinstance(blockers, str):
         blockers = [blockers]
 
+    constraints = context.get("constraints", [])
+    if isinstance(constraints, str):
+        constraints = [constraints]
+
+    preflight = context.get("preflight", {}) or {}
+    scope = context.get("scope", {}) or {}
+
+    pending_inputs = context.get("pending_inputs", [])
+    pending_lines = []
+    if isinstance(pending_inputs, list):
+        for item in pending_inputs:
+            if isinstance(item, dict):
+                question = item.get("question", "Unknown")
+                needed_for = item.get("needed_for", "Unknown")
+                pending_lines.append(f"- {question} - needed for: {needed_for}")
+            else:
+                pending_lines.append(f"- {item}")
+    pending_block = "\n".join(pending_lines) if pending_lines else "- None"
+
     mapping = {
         "PROJECT_NAME": project["name"],
         "CONTEXT_GENERATED": context["generated"],
         "IMMEDIATE_ACTION": context["immediate_action"],
         "IMMEDIATE_FILE": context["immediate_file"],
-        "IMMEDIATE_WHY": context["immediate_why"],
+        "IMMEDIATE_WHY": context.get("immediate_why", "None"),
         "EXECPLAN_PATH": context["execplan_path"],
         "LAST_CHECKPOINT": context["last_checkpoint"],
-        "RED_LINES_BLOCK": bullet_block(context.get("red_lines", [])),
+        "PHASE_NUMBER": context["phase"],
+        "PHASE_NAME": context["phase_name"],
+        "PHASE_STATUS": context["status"],
         "BLOCKERS_BLOCK": bullet_block(blockers),
+        "CONSTRAINTS_BLOCK": bullet_block(constraints),
+        "PREFLIGHT_CWD": str(preflight.get("cwd", "unknown")),
+        "PREFLIGHT_INTERPRETER": str(preflight.get("interpreter", "unknown")),
+        "PREFLIGHT_PYTHON_VERSION": str(preflight.get("python_version", "unknown")),
+        "PREFLIGHT_VENV_ACTIVE": str(preflight.get("venv_active", "unknown")),
+        "PREFLIGHT_ENV_EXISTS": str(preflight.get("env_exists", "unknown")),
+        "PREFLIGHT_GIT_STATUS": str(preflight.get("git_status", "unknown")),
+        "PREFLIGHT_BRANCH": str(preflight.get("branch", "unknown")),
+        "PREFLIGHT_TEST_CMD_FOUND": str(preflight.get("test_cmd_found", "unknown")),
+        "PREFLIGHT_SECRETS_MODE": str(preflight.get("secrets_mode", "unknown")),
+        "PREFLIGHT_SAFE_MOCK_OK": str(preflight.get("safe_mock_ok", "unknown")),
+        "PREFLIGHT_LAST": str(preflight.get("last_preflight", "unknown")),
+        "SCOPE_GOAL": str(scope.get("goal", "unknown")),
+        "SCOPE_NON_GOALS": str(scope.get("non_goals", "unknown")),
+        "SCOPE_RISK": str(scope.get("risk_level", "unknown")),
+        "SCOPE_TEST_PLAN": str(scope.get("test_plan", "unknown")),
+        "PENDING_INPUTS_BLOCK": pending_block,
     }
     return mapping
 
@@ -217,61 +264,42 @@ def build_runbook_mapping(spec):
     runbook = spec.get("runbook")
     if not runbook:
         return None
-
     metadata = runbook.get("metadata")
-    if not isinstance(metadata, dict):
-        raise SpecError("runbook.metadata must be an object")
-    ensure_str(metadata.get("repo_root"), "runbook.metadata.repo_root")
-    ensure_str(metadata.get("shell"), "runbook.metadata.shell")
-    ensure_str(metadata.get("env_file"), "runbook.metadata.env_file")
+    metadata_section = ""
+    if isinstance(metadata, dict):
+        metadata_body = "\n".join(
+            [
+                f"- Default working dir: `{metadata.get('repo_root', '-')}`",
+                f"- Shell: `{metadata.get('shell', '-')}`",
+                f"- Environment file: `{metadata.get('env_file', '-')}`",
+            ]
+        )
+        metadata_section = section("Metadata (Read Once)", metadata_body)
 
     commands = runbook.get("commands", [])
     if not isinstance(commands, list):
         raise SpecError("runbook.commands must be a list")
 
-    metadata_body = "\n".join(
-        [
-            f"- Default working dir: `{metadata.get('repo_root', '-')}`",
-            f"- Shell: `{metadata.get('shell', '-')}`",
-            f"- Environment file: `{metadata.get('env_file', '-')}`",
-        ]
-    )
-
     command_rows = []
     for idx, cmd in enumerate(commands):
         ensure_str(cmd.get("id"), f"runbook.commands[{idx}].id")
-        ensure_str(cmd.get("action"), f"runbook.commands[{idx}].action")
         ensure_str(cmd.get("command"), f"runbook.commands[{idx}].command")
         command_rows.append(
             [
                 format_cell(cmd.get("id", "-")),
                 format_cell(cmd.get("action", "-")),
                 format_cell(cmd.get("command", "-"), code=True),
-                format_cell(cmd.get("scope", "-")),
                 format_cell(cmd.get("preconditions", "-")),
                 format_cell(cmd.get("expected", "-")),
-                format_cell(cmd.get("side_effects", "-")),
-                format_cell(cmd.get("safe", "-")),
             ]
         )
 
-    command_table = make_table(
-        [
-            "ID",
-            "Action",
-            "Command",
-            "Scope",
-            "Preconditions",
-            "Expected",
-            "Side Effects",
-            "Safe",
-        ],
-        command_rows,
-    )
-
     command_registry_section = section(
         "COMMAND REGISTRY",
-        command_table,
+        make_table(
+            ["ID", "Action", "Command", "Preconditions", "Expected"],
+            command_rows,
+        ),
         intro="Each row is a single, copy-pasteable command. No implied flags.",
     )
 
@@ -292,6 +320,52 @@ def build_runbook_mapping(spec):
             make_table(["ID", "Args", "Example"], rows),
         )
 
+    test_tiers = runbook.get("test_tiers")
+    if not isinstance(test_tiers, list):
+        raise SpecError("runbook.test_tiers must be a list")
+    test_rows = []
+    for idx, tier in enumerate(test_tiers):
+        ensure_str(tier.get("tier"), f"runbook.test_tiers[{idx}].tier")
+        ensure_str(tier.get("id"), f"runbook.test_tiers[{idx}].id")
+        ensure_str(tier.get("command"), f"runbook.test_tiers[{idx}].command")
+        test_rows.append(
+            [
+                format_cell(tier.get("tier", "-")),
+                format_cell(tier.get("id", "-")),
+                format_cell(tier.get("command", "-"), code=True),
+                format_cell(tier.get("preconditions", "-")),
+                format_cell(tier.get("fallback", "-")),
+            ]
+        )
+    test_tiers_section = section(
+        "TEST TIERS (Required - No Guessing)",
+        make_table(
+            ["Tier", "ID", "Command", "Preconditions", "Fallback"],
+            test_rows,
+        ),
+    )
+
+    env_modes = runbook.get("environment_modes")
+    if not isinstance(env_modes, list) or not env_modes:
+        env_modes = [
+            {"mode": "LIVE", "condition": ".env exists", "behavior": "Run all tests"},
+            {"mode": "MOCK", "condition": "SAFE_MOCK_OK=true", "behavior": "Use mock fixtures"},
+            {"mode": "SKIP", "condition": "no .env", "behavior": "Skip integration"},
+        ]
+    env_rows = []
+    for item in env_modes:
+        env_rows.append(
+            [
+                format_cell(item.get("mode", "-")),
+                format_cell(item.get("condition", "-")),
+                format_cell(item.get("behavior", "-")),
+            ]
+        )
+    environment_modes_section = section(
+        "ENVIRONMENT MODES",
+        make_table(["Mode", "Condition", "Behavior"], env_rows),
+    )
+
     phase_scripts = runbook.get("phase_scripts", [])
     phase_scripts_section = ""
     if phase_scripts:
@@ -299,10 +373,9 @@ def build_runbook_mapping(spec):
         for item in phase_scripts:
             rows.append(
                 [
-                    format_cell(item.get("id", "-")),
+                    format_cell(item.get("phase", "-")),
                     format_cell(item.get("script", "-"), code=True),
                     format_cell(item.get("command", "-"), code=True),
-                    format_cell(item.get("scope", "-")),
                     format_cell(item.get("preconditions", "-")),
                     format_cell(item.get("expected", "-")),
                 ]
@@ -310,17 +383,10 @@ def build_runbook_mapping(spec):
         phase_scripts_section = section(
             "PHASE-SCOPED SCRIPTS",
             make_table(
-                [
-                    "ID",
-                    "Script",
-                    "Command",
-                    "Scope",
-                    "Preconditions",
-                    "Expected",
-                ],
+                ["Phase", "Script", "Command", "Preconditions", "Expected"],
                 rows,
             ),
-            intro="Use Scope to guard execution; only run when current phase matches.",
+            intro="Only run scripts that match the current phase.",
         )
 
     troubleshooting = runbook.get("troubleshooting", [])
@@ -336,8 +402,8 @@ def build_runbook_mapping(spec):
                 ]
             )
         troubleshooting_section = section(
-            "TROUBLESHOOTING MATRIX (Regex-Driven)",
-            make_table(["Error Pattern (regex)", "Diagnosis", "Next Command"], rows),
+            "TROUBLESHOOTING MATRIX",
+            make_table(["Error Pattern", "Diagnosis", "Next Command"], rows),
         )
 
     services = runbook.get("services", [])
@@ -355,7 +421,7 @@ def build_runbook_mapping(spec):
                 ]
             )
         services_section = section(
-            "EXTERNAL SERVICES (Structured)",
+            "EXTERNAL SERVICES",
             make_table(["Service", "Purpose", "Endpoint", "Auth", "Health Command"], rows),
         )
 
@@ -373,19 +439,32 @@ def build_runbook_mapping(spec):
                 ]
             )
         maintenance_section = section(
-            "MAINTENANCE (Only if required)",
+            "MAINTENANCE",
             make_table(["Task", "Frequency", "Command", "Safe"], rows),
         )
 
+    discovery_body = "\n".join(
+        [
+            "If a required command is missing:",
+            "1. Use CMD-DISCOVER in GOVERNANCE.",
+            "2. Ask for confirmation.",
+            "3. Update this RUNBOOK.",
+        ]
+    )
+    discovery_section = section("COMMAND DISCOVERY RULES", discovery_body)
+
     mapping = {
         "PROJECT_NAME": project["name"],
-        "RUNBOOK_METADATA_SECTION": section("Metadata (Read Once)", metadata_body),
+        "RUNBOOK_METADATA_SECTION": metadata_section,
         "COMMAND_REGISTRY_SECTION": command_registry_section,
         "COMMAND_ARGS_SECTION": command_args_section,
+        "TEST_TIERS_SECTION": test_tiers_section,
+        "ENVIRONMENT_MODES_SECTION": environment_modes_section,
         "PHASE_SCRIPTS_SECTION": phase_scripts_section,
         "TROUBLESHOOTING_SECTION": troubleshooting_section,
         "SERVICES_SECTION": services_section,
         "MAINTENANCE_SECTION": maintenance_section,
+        "DISCOVERY_SECTION": discovery_section,
     }
     return mapping
 
@@ -426,8 +505,8 @@ def build_status_mapping(spec):
         )
 
     phase_map_section = section(
-        "Phase Map",
-        make_table(["Phase", "Name", "Status", "Goal (1 sentence)", "Evidence"], phase_rows),
+        "Phase Overview",
+        make_table(["Phase", "Name", "Status", "Goal", "Evidence"], phase_rows),
     )
 
     current = status.get("current_phase", {})
@@ -440,42 +519,38 @@ def build_status_mapping(spec):
         f"**Phase:** {current.get('phase', '-')} - {current.get('name', '-')}",
         f"**Goal:** {current.get('goal', '-')}",
         "",
-        "**Evidence Targets**",
+        "**Objectives**",
     ]
 
-    targets = current.get("evidence_targets", [])
-    if targets:
-        for target in targets:
-            label = format_cell(target.get("label", "-"))
-            path = format_cell(target.get("path", "-"), code=True)
-            current_lines.append(f"- {label} -> {path}")
+    objectives = current.get("objectives", [])
+    if objectives:
+        current_lines.extend(f"- {item}" for item in objectives)
     else:
         current_lines.append("- None")
 
     current_lines.append("")
-    current_lines.append("**Risks / Architectural Debt**")
-    risks = current.get("risks", [])
-    if risks:
-        current_lines.extend(f"- {risk}" for risk in risks)
+    current_lines.append("**Evidence**")
+    evidence = current.get("evidence", [])
+    if evidence:
+        current_lines.extend(f"- {item}" for item in evidence)
     else:
         current_lines.append("- None")
 
-    current_phase_section = section("Current Phase Focus", "\n".join(current_lines))
+    current_phase_section = section("Current Phase", "\n".join(current_lines))
 
-    notes = current.get("notes", [])
-    phase_notes_section = ""
-    if notes:
-        phase_notes_section = section(
-            "Phase Notes (Optional, 3 bullets max)",
-            "\n".join(f"- {note}" for note in notes),
-        )
+    risks = current.get("risks", [])
+    risks_section = section("Risks / Architectural Debt", bullet_block(risks))
+
+    blockers = current.get("blockers", [])
+    blockers_section = section("Blockers", bullet_block(blockers))
 
     mapping = {
         "PROJECT_NAME": project["name"],
         "STATUS_UPDATED": updated,
         "PHASE_MAP_SECTION": phase_map_section,
         "CURRENT_PHASE_SECTION": current_phase_section,
-        "PHASE_NOTES_SECTION": phase_notes_section,
+        "RISKS_SECTION": risks_section,
+        "BLOCKERS_SECTION": blockers_section,
     }
     return mapping
 
@@ -488,42 +563,64 @@ def build_skill_mapping(skill):
     title = skill.get("title") or name.replace("-", " ").title()
     overview = ensure_str(skill.get("overview"), f"skills[{name}].overview")
 
+    triggers = skill.get("triggers", [])
+    if not isinstance(triggers, list):
+        raise SpecError(f"skills[{name}].triggers must be a list")
+    trigger_block = bullet_block([str(item) for item in triggers]) if triggers else "- None"
+
     quick_start = skill.get("quick_start", {})
     quick_command = ensure_str(quick_start.get("command"), f"skills[{name}].quick_start.command")
     quick_expected = ensure_str(quick_start.get("expected"), f"skills[{name}].quick_start.expected")
 
     inputs = skill.get("inputs", {})
-    required_files = inputs.get("required_files", [])
-    if isinstance(required_files, list):
-        required_files_str = ", ".join(required_files) if required_files else "None"
-    else:
-        required_files_str = str(required_files)
-
-    required_data = inputs.get("required_data", "None")
+    inputs_list = inputs.get("inputs")
+    outputs_list = inputs.get("outputs")
     preconditions = inputs.get("preconditions", "None")
+
+    if inputs_list is None:
+        required_files = inputs.get("required_files", [])
+        required_data = inputs.get("required_data", None)
+        parts = []
+        if isinstance(required_files, list) and required_files:
+            parts.append(", ".join(required_files))
+        if required_data:
+            parts.append(str(required_data))
+        inputs_summary = "; ".join(parts) if parts else "None"
+    else:
+        if isinstance(inputs_list, list):
+            inputs_summary = ", ".join(inputs_list) if inputs_list else "None"
+        else:
+            inputs_summary = str(inputs_list)
+
+    if outputs_list is None:
+        outputs_summary = "None"
+    elif isinstance(outputs_list, list):
+        outputs_summary = ", ".join(outputs_list) if outputs_list else "None"
+    else:
+        outputs_summary = str(outputs_list)
 
     scripts = skill.get("scripts", [])
     if scripts:
         script_lines = []
         for item in scripts:
+            args = item.get("args")
+            if args is None:
+                required_args = item.get("required_args", "")
+                optional_args = item.get("optional_args", "")
+                args = " ".join(part for part in [required_args, optional_args] if part)
             script_lines.extend(
                 [
                     f"### {item.get('path', '-')}",
                     f"- Purpose: {item.get('purpose', '-')}",
-                    f"- Required args: {item.get('required_args', '-')}",
-                    f"- Optional args: {item.get('optional_args', '-')}",
-                    "- Command:",
-                    f"    {item.get('command', '-')}",
-                    "- Expected:",
-                    f"    {item.get('expected', '-')}",
+                    f"- Usage: `{item.get('command', '-')}`",
+                    f"- Args: {args or 'None'}",
+                    f"- Expected: {item.get('expected', '-')}",
                     "",
                 ]
             )
         scripts_block = "\n".join(script_lines).rstrip()
     else:
         scripts_block = "- None"
-
-    workflow = numbered_block(skill.get("workflow", []))
 
     references = skill.get("references", [])
     if references:
@@ -533,14 +630,6 @@ def build_skill_mapping(skill):
         )
     else:
         references_block = "- None"
-
-    assets = skill.get("assets", [])
-    if assets:
-        assets_block = "\n".join(
-            f"- `{item.get('file', '-')}` - {item.get('purpose', '-')}." for item in assets
-        )
-    else:
-        assets_block = "- None"
 
     examples = skill.get("examples", [])
     if examples:
@@ -566,17 +655,30 @@ def build_skill_mapping(skill):
         "SKILL_DESCRIPTION": description,
         "SKILL_TITLE": title,
         "SKILL_OVERVIEW": overview,
+        "TRIGGER_PHRASES_BLOCK": trigger_block,
         "QUICK_START_COMMAND": quick_command,
         "QUICK_START_EXPECTED": quick_expected,
-        "REQUIRED_FILES": required_files_str,
-        "REQUIRED_DATA": required_data,
+        "INPUTS_SUMMARY": inputs_summary,
+        "OUTPUTS_SUMMARY": outputs_summary,
         "PRECONDITIONS": preconditions,
         "SCRIPTS_BLOCK": scripts_block,
-        "WORKFLOW_BLOCK": workflow,
         "REFERENCES_BLOCK": references_block,
-        "ASSETS_BLOCK": assets_block,
         "EXAMPLES_BLOCK": examples_block,
     }
+
+
+def build_system_instruction_mapping(spec):
+    system = spec.get("system_instruction")
+    if not system:
+        return None
+    if not isinstance(system, dict):
+        raise SpecError("system_instruction must be an object")
+    path = ensure_str(system.get("path"), "system_instruction.path")
+    kb_templates = system.get("kb_templates", [])
+    if not isinstance(kb_templates, list) or not kb_templates:
+        raise SpecError("system_instruction.kb_templates must be a non-empty list")
+    mapping = {"KB_TEMPLATE_LIST": ", ".join(str(item) for item in kb_templates)}
+    return mapping, path
 
 
 def main():
@@ -646,6 +748,16 @@ def main():
                 output_root, ".agent", "skills", mapping["SKILL_NAME"], "SKILL.md"
             )
             writes.append((output_path, skill_content))
+
+    system_instruction = build_system_instruction_mapping(spec)
+    if system_instruction:
+        mapping, path = system_instruction
+        system_template = os.path.join(templates_dir, "SYSTEM_INSTRUCTION.md")
+        system_content = render_template(system_template, mapping)
+        output_path = path
+        if not os.path.isabs(output_path):
+            output_path = os.path.join(output_root, output_path)
+        writes.append((output_path, system_content))
 
     for path, content in writes:
         write_file(path, content)
