@@ -14,6 +14,7 @@
   "agents": {
     "autonomy_mode": "FULL",
     "always": [
+      "Use .venv/bin/python when .venv exists",
       "Use commands only from docs/RUNBOOK.md",
       "Run test.smoke after every code change",
       "Wrap sync EcomAgent calls with asyncio.to_thread"
@@ -29,11 +30,26 @@
       "Commit secrets or credentials"
     ],
     "key_files": [
-      {"purpose": "Entry point", "path": "src/apeg_core/main.py"},
-      {"purpose": "SEO orchestrator", "path": "src/apeg_core/agents/seo_orchestrator.py"},
-      {"purpose": "Metrics collector", "path": "src/apeg_core/metrics/collector.py"},
-      {"purpose": "Feedback loop", "path": "src/apeg_core/feedback/analyzer.py"},
-      {"purpose": "Tests", "path": "tests/"}
+      {
+        "purpose": "Entry point",
+        "path": "src/apeg_core/main.py"
+      },
+      {
+        "purpose": "SEO orchestrator",
+        "path": "src/apeg_core/agents/seo_orchestrator.py"
+      },
+      {
+        "purpose": "Metrics collector",
+        "path": "src/apeg_core/metrics/collector.py"
+      },
+      {
+        "purpose": "Feedback loop",
+        "path": "src/apeg_core/feedback/analyzer.py"
+      },
+      {
+        "purpose": "Tests",
+        "path": "tests/"
+      }
     ]
   },
   "context": {
@@ -52,7 +68,9 @@
       "Use product.seo { title, description } for Shopify SEO updates",
       "Writes require APEG_ALLOW_WRITES=YES and APEG_ENV set"
     ],
-    "blockers": ["Etsy integration blocked by GPL-3.0 etsyv3 license"],
+    "blockers": [
+      "Etsy integration blocked by GPL-3.0 etsyv3 license"
+    ],
     "preflight": {
       "cwd": "/home/matt/repos/APEG",
       "interpreter": "unknown",
@@ -73,8 +91,14 @@
       "test_plan": "test.smoke"
     },
     "pending_inputs": [
-      {"question": "Provide META_APP_SECRET", "needed_for": "Meta token validation"},
-      {"question": "Provide N8N_BASE_URL", "needed_for": "n8n credential check"}
+      {
+        "question": "Provide META_APP_SECRET",
+        "needed_for": "Meta token validation"
+      },
+      {
+        "question": "Provide N8N_BASE_URL",
+        "needed_for": "n8n credential check"
+      }
     ]
   },
   "runbook": {
@@ -87,54 +111,70 @@
       {
         "id": "run",
         "action": "Start APEG API server",
-        "command": "PYTHONPATH=. uvicorn src.apeg_core.main:app --reload --host 0.0.0.0 --port 8000",
+        "command": "PYTHONPATH=. .venv/bin/python -m uvicorn src.apeg_core.main:app --reload --host 0.0.0.0 --port 8000",
         "preconditions": "deps installed; env vars set",
         "expected": "Uvicorn running"
       },
       {
         "id": "lint",
         "action": "Lint source",
-        "command": "ruff check src/",
+        "command": ".venv/bin/python -m ruff check src/",
         "preconditions": "deps installed",
         "expected": "No lint errors"
       }
     ],
     "command_args": [
-      {"id": "test.single", "args": "{PATH}", "example": "PYTHONPATH=. pytest tests/unit/test_api_routes.py -v"}
+      {
+        "id": "test.single",
+        "args": "{PATH}",
+        "example": "PYTHONPATH=. .venv/bin/python -m pytest tests/unit/test_api_routes.py -v"
+      }
     ],
     "test_tiers": [
       {
         "tier": "SMOKE",
         "id": "test.smoke",
-        "command": "PYTHONPATH=. pytest tests/unit/ -v",
+        "command": "PYTHONPATH=. .venv/bin/python -m pytest tests/unit/ -v",
         "preconditions": "deps installed",
         "fallback": "ASK"
       },
       {
         "tier": "TARGETED",
         "id": "test.targeted",
-        "command": "PYTHONPATH=. pytest tests/ -k {MODULE} -v",
+        "command": "PYTHONPATH=. .venv/bin/python -m pytest tests/ -k {MODULE} -v",
         "preconditions": "deps installed",
         "fallback": "Run test.smoke"
       },
       {
         "tier": "FULL",
         "id": "test.full",
-        "command": "PYTHONPATH=. pytest -v",
+        "command": "PYTHONPATH=. .venv/bin/python -m pytest -v",
         "preconditions": "deps + .env",
         "fallback": "Run test.smoke and warn"
       }
     ],
     "environment_modes": [
-      {"mode": "LIVE", "condition": ".env exists", "behavior": "Run all tests"},
-      {"mode": "MOCK", "condition": "SAFE_MOCK_OK=true", "behavior": "Use mock fixtures"},
-      {"mode": "SKIP", "condition": "no .env", "behavior": "Skip integration"}
+      {
+        "mode": "LIVE",
+        "condition": ".env exists",
+        "behavior": "Run all tests"
+      },
+      {
+        "mode": "MOCK",
+        "condition": "SAFE_MOCK_OK=true",
+        "behavior": "Use mock fixtures"
+      },
+      {
+        "mode": "SKIP",
+        "condition": "no .env",
+        "behavior": "Skip integration"
+      }
     ],
     "phase_scripts": [
       {
         "phase": "0",
         "script": "scripts/run_phase0_evidence.py",
-        "command": "PYTHONPATH=. python scripts/run_phase0_evidence.py",
+        "command": "PYTHONPATH=. .venv/bin/python scripts/run_phase0_evidence.py",
         "preconditions": "env configured",
         "expected": "Evidence file updated"
       }
@@ -145,23 +185,69 @@
         "diagnosis": "Missing dependency",
         "next_command": "python -c \"import importlib.util; print(importlib.util.find_spec('{pkg}') is not None)\""
       }
+    ],
+    "integration_checks": [
+      {
+        "id": "n8n.webhook.trigger",
+        "purpose": "Trigger APEG start webhook for validation (start node open for agents)",
+        "command": "curl -X POST \"$N8N_WEBHOOK_TEST_URL\" -H \"Content-Type: application/json\" -d \"{\\\"ping\\\":\\\"apeg\\\"}\"",
+        "expected": "HTTP 200 and JSON response; execution visible in n8n UI",
+        "evidence": "Paste response JSON or screenshot of execution"
+      },
+      {
+        "id": "n8n.api.credentials",
+        "purpose": "Validate n8n API key (optional when API is enabled)",
+        "command": "curl -H \"X-N8N-API-KEY: $N8N_API_KEY\" \"$N8N_BASE_URL/rest/credentials\"",
+        "expected": "HTTP 200 and credential list",
+        "evidence": "Response excerpt (ids only)"
+      }
     ]
   },
   "status": {
     "updated": "2026-01-06",
     "phases": [
-      {"phase": "0", "name": "Config + Cutover Readiness", "status": "IN_PROGRESS", "goal": "Environment parity and cutover readiness", "evidence": "docs/ACCEPTANCE_TESTS.md"},
-      {"phase": "1", "name": "EcomAgent Standalone", "status": "COMPLETE", "goal": "EcomAgent runs standalone and produces JSONL outputs", "evidence": "docs/ACCEPTANCE_TESTS.md"},
-      {"phase": "2", "name": "n8n Integration", "status": "IN_PROGRESS", "goal": "n8n stages SEO changes and executes Shopify bulk ops", "evidence": "docs/ACCEPTANCE_TESTS.md"}
+      {
+        "phase": "0",
+        "name": "Config + Cutover Readiness",
+        "status": "IN_PROGRESS",
+        "goal": "Environment parity and cutover readiness",
+        "evidence": "docs/ACCEPTANCE_TESTS.md"
+      },
+      {
+        "phase": "1",
+        "name": "EcomAgent Standalone",
+        "status": "COMPLETE",
+        "goal": "EcomAgent runs standalone and produces JSONL outputs",
+        "evidence": "docs/ACCEPTANCE_TESTS.md"
+      },
+      {
+        "phase": "2",
+        "name": "n8n Integration",
+        "status": "IN_PROGRESS",
+        "goal": "n8n stages SEO changes and executes Shopify bulk ops",
+        "evidence": "docs/ACCEPTANCE_TESTS.md"
+      }
     ],
     "current_phase": {
       "phase": "0",
       "name": "Config + Cutover Readiness",
       "goal": "Enforce environment parity and complete demo-to-live readiness checks",
-      "objectives": ["Update environment docs", "Record Phase 0 evidence"],
-      "evidence": ["docs/ACCEPTANCE_TESTS.md", "docs/evidence/phase0-evidence-20260106-0728Z.txt"],
-      "risks": ["Environment parity drift", "Cutover misconfiguration"],
-      "blockers": ["META_APP_SECRET missing", "N8N_BASE_URL missing"]
+      "objectives": [
+        "Update environment docs",
+        "Record Phase 0 evidence"
+      ],
+      "evidence": [
+        "docs/ACCEPTANCE_TESTS.md",
+        "docs/evidence/phase0-evidence-20260106-0728Z.txt"
+      ],
+      "risks": [
+        "Environment parity drift",
+        "Cutover misconfiguration"
+      ],
+      "blockers": [
+        "META_APP_SECRET missing",
+        "N8N_BASE_URL missing"
+      ]
     }
   },
   "system_instruction": {

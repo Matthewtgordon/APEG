@@ -10,9 +10,9 @@
 
 | Test ID | Test Name | Spec Section | Method | Expected | Actual | Status | Evidence |
 |---------|-----------|--------------|--------|----------|--------|--------|----------|
-| AT-P0-SHOPIFY-01 | Shopify auth: `{ shop { name } }` | 1.8, Appendix F | Admin GraphQL query via configured token | 200 OK and store name returned | shop.name returned | PASS | docs/evidence/phase0-evidence-20260106-0728Z.txt |
-| AT-P0-META-01 | Meta token debug valid | 1.8, 6.12 | Meta token debug endpoint (or UI) | Token valid with required scopes | Missing META_APP_SECRET | SKIPPED | docs/evidence/phase0-evidence-20260106-0728Z.txt |
-| AT-P0-N8N-01 | n8n credential ID documented | 8.13 | Record credential IDs from n8n UI | Demo credential IDs recorded | Missing N8N_BASE_URL | SKIPPED | docs/evidence/phase0-evidence-20260106-0728Z.txt |
+| AT-P0-SHOPIFY-01 | Shopify auth: `{ shop { name } }` | 1.8, Appendix F | Admin GraphQL query via configured token | 200 OK and store name returned | shop.name=My Store | PASS | docs/evidence/phase0-evidence-20260107-2111Z.txt |
+| AT-P0-META-01 | Meta token debug valid | 1.8, 6.12 | Meta token debug endpoint (or UI) | Token valid with required scopes | valid scopes=pages_show_list,ads_management,ads_read,business_management,pages_read_engagement,public_profile | PASS | docs/evidence/phase0-evidence-20260107-2111Z.txt |
+| AT-P0-N8N-01 | n8n credential ID documented | 8.13 | Record credential IDs from n8n UI | Demo credential IDs recorded | HTTP 401 from credentials endpoint | FAIL | docs/evidence/phase0-evidence-20260107-2111Z.txt |
 | AT-P0-LEGACY-APP-01 | Legacy custom app creation constraints | Section 1.7 | Research validation | New apps after 2026-01-01 require Shopify Dev Dashboard; existing legacy apps unaffected | Matches expected | VERIFIED | Stage 2 Research Log |
 | AT-P0-CJ-ATTRIBUTION-01 | CustomerJourney attribution window semantics | Section 7 | Research validation | CustomerJourney uses a 30-day attribution window (not data retention); non-build-gating | Matches expected | VERIFIED | Stage 2 Research Log |
 

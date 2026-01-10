@@ -1,0 +1,4 @@
+Phase 0 evidence run: 2026-01-07 20:32Z
+AT-P0-SHOPIFY-01: PASS - shop.name=My Store
+AT-P0-META-01: FAIL - HTTP 400 - (#100) You must provide an app access token, or a user access token that is an owner or developer of the app
+AT-P0-N8N-01: FAIL - HTTP 401 from /rest/credentials

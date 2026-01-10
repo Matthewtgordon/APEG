@@ -117,6 +117,9 @@ runbook: {
   environment_modes: [
     {"mode": "LIVE", "condition": "...", "behavior": "..."}
   ],
+  integration_checks: [
+    {"id": "...", "purpose": "...", "command": "...", "expected": "...", "evidence": "..."}
+  ],
   phase_scripts: [
     {"phase": "1", "script": "scripts/migrate.py", "command": "...", "preconditions": "...", "expected": "..."}
   ],

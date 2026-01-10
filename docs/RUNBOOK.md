@@ -36,7 +36,7 @@ Each row is a single, copy-pasteable command. No implied flags.
 Only run scripts that match the current phase.
 | Phase | Script | Command | Preconditions | Expected |
 |---|---|---|---|---|
-| 0 | `scripts/run_phase0_evidence.py` | `PYTHONPATH=. python scripts/run_phase0_evidence.py` | env configured | Evidence file updated |
+| 0 | `scripts/run_phase0_evidence.py` | `PYTHONPATH=. python3 scripts/run_phase0_evidence.py` | env configured | Evidence file updated |
 
 ## TROUBLESHOOTING MATRIX
 | Error Pattern | Diagnosis | Next Command |
@@ -50,4 +50,3 @@ If a required command is missing:
 1. Use CMD-DISCOVER in GOVERNANCE.
 2. Ask for confirmation.
 3. Update this RUNBOOK.
-

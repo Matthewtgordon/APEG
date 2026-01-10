@@ -14,6 +14,7 @@
   "agents": {
     "autonomy_mode": "FULL",
     "always": [
+      "Use .venv/bin/python when .venv exists",
       "Use repository-relative paths in responses",
       "Run test.smoke after every code change"
     ],
@@ -26,9 +27,18 @@
       "Delete existing tests"
     ],
     "key_files": [
-      {"purpose": "Entry point", "path": "src/main.py"},
-      {"purpose": "API routes", "path": "src/api/routes.py"},
-      {"purpose": "Tests", "path": "tests/"}
+      {
+        "purpose": "Entry point",
+        "path": "src/main.py"
+      },
+      {
+        "purpose": "API routes",
+        "path": "src/api/routes.py"
+      },
+      {
+        "purpose": "Tests",
+        "path": "tests/"
+      }
     ]
   },
   "context": {
@@ -45,7 +55,9 @@
       "Do not add GPL dependencies",
       "Do not bypass auth checks"
     ],
-    "blockers": ["None"],
+    "blockers": [
+      "None"
+    ],
     "preflight": {
       "cwd": "/path/to/ExampleProject",
       "interpreter": "/path/to/ExampleProject/.venv/bin/python",
@@ -66,7 +78,10 @@
       "test_plan": "test.smoke"
     },
     "pending_inputs": [
-      {"question": "Need live API key?", "needed_for": "integration tests"}
+      {
+        "question": "Need live API key?",
+        "needed_for": "integration tests"
+      }
     ]
   },
   "runbook": {
@@ -79,54 +94,70 @@
       {
         "id": "run",
         "action": "Start dev server",
-        "command": "PYTHONPATH=. uvicorn src.main:app --reload --port 8000",
+        "command": "PYTHONPATH=. .venv/bin/python -m uvicorn src.main:app --reload --port 8000",
         "preconditions": "deps installed",
         "expected": "Uvicorn running"
       },
       {
         "id": "lint",
         "action": "Lint source",
-        "command": "ruff check src/",
+        "command": ".venv/bin/python -m ruff check src/",
         "preconditions": "deps installed",
         "expected": "No lint errors"
       }
     ],
     "command_args": [
-      {"id": "test.single", "args": "{PATH}", "example": "PYTHONPATH=. pytest tests/unit/test_api.py -v"}
+      {
+        "id": "test.single",
+        "args": "{PATH}",
+        "example": "PYTHONPATH=. .venv/bin/python -m pytest tests/unit/test_api.py -v"
+      }
     ],
     "test_tiers": [
       {
         "tier": "SMOKE",
         "id": "test.smoke",
-        "command": "PYTHONPATH=. pytest tests/unit/ -v",
+        "command": "PYTHONPATH=. .venv/bin/python -m pytest tests/unit/ -v",
         "preconditions": "deps installed",
         "fallback": "ASK"
       },
       {
         "tier": "TARGETED",
         "id": "test.targeted",
-        "command": "PYTHONPATH=. pytest tests/ -k {MODULE} -v",
+        "command": "PYTHONPATH=. .venv/bin/python -m pytest tests/ -k {MODULE} -v",
         "preconditions": "deps installed",
         "fallback": "Run test.smoke"
       },
       {
         "tier": "FULL",
         "id": "test.full",
-        "command": "PYTHONPATH=. pytest -v",
+        "command": "PYTHONPATH=. .venv/bin/python -m pytest -v",
         "preconditions": "deps + .env",
         "fallback": "Run test.smoke and warn"
       }
     ],
     "environment_modes": [
-      {"mode": "LIVE", "condition": ".env exists", "behavior": "Run all tests"},
-      {"mode": "MOCK", "condition": "SAFE_MOCK_OK=true", "behavior": "Use mock fixtures"},
-      {"mode": "SKIP", "condition": "no .env", "behavior": "Skip integration"}
+      {
+        "mode": "LIVE",
+        "condition": ".env exists",
+        "behavior": "Run all tests"
+      },
+      {
+        "mode": "MOCK",
+        "condition": "SAFE_MOCK_OK=true",
+        "behavior": "Use mock fixtures"
+      },
+      {
+        "mode": "SKIP",
+        "condition": "no .env",
+        "behavior": "Skip integration"
+      }
     ],
     "phase_scripts": [
       {
         "phase": "1",
         "script": "scripts/migrate.py",
-        "command": "PYTHONPATH=. python scripts/migrate.py --dry-run",
+        "command": "PYTHONPATH=. .venv/bin/python scripts/migrate.py --dry-run",
         "preconditions": "db reachable",
         "expected": "Migration plan printed"
       }
@@ -137,22 +168,52 @@
         "diagnosis": "Service not running",
         "next_command": "python -c \"import socket; s=socket.socket(); s.connect(('127.0.0.1',8000))\""
       }
+    ],
+    "integration_checks": [
+      {
+        "id": "healthcheck",
+        "purpose": "Verify service responds",
+        "command": "curl -s http://localhost:8000/health",
+        "expected": "HTTP 200 and JSON response",
+        "evidence": "Response body"
+      }
     ]
   },
   "status": {
     "updated": "2025-01-05",
     "phases": [
-      {"phase": "0", "name": "Bootstrap", "status": "COMPLETE", "goal": "Project scaffolding complete", "evidence": "docs/ACCEPTANCE_TESTS.md#P0"},
-      {"phase": "1", "name": "API", "status": "IN_PROGRESS", "goal": "API stable and validated", "evidence": "docs/ACCEPTANCE_TESTS.md#P1"}
+      {
+        "phase": "0",
+        "name": "Bootstrap",
+        "status": "COMPLETE",
+        "goal": "Project scaffolding complete",
+        "evidence": "docs/ACCEPTANCE_TESTS.md#P0"
+      },
+      {
+        "phase": "1",
+        "name": "API",
+        "status": "IN_PROGRESS",
+        "goal": "API stable and validated",
+        "evidence": "docs/ACCEPTANCE_TESTS.md#P1"
+      }
     ],
     "current_phase": {
       "phase": "1",
       "name": "API",
       "goal": "Requests validated and error handling consistent",
-      "objectives": ["Add request validation", "Normalize error responses"],
-      "evidence": ["docs/ACCEPTANCE_TESTS.md#P1"],
-      "risks": ["Validation logic duplicated in handlers"],
-      "blockers": ["None"]
+      "objectives": [
+        "Add request validation",
+        "Normalize error responses"
+      ],
+      "evidence": [
+        "docs/ACCEPTANCE_TESTS.md#P1"
+      ],
+      "risks": [
+        "Validation logic duplicated in handlers"
+      ],
+      "blockers": [
+        "None"
+      ]
     }
   },
   "skills": [
@@ -161,14 +222,23 @@
       "title": "PDF Reporting",
       "description": "Generate PDF reports and fill templates. Use when user asks to create or update PDF reports, populate forms, or extract tables.",
       "overview": "Produce PDF outputs from structured data and templates.",
-      "triggers": ["create PDF report", "fill PDF form", "extract PDF table"],
+      "triggers": [
+        "create PDF report",
+        "fill PDF form",
+        "extract PDF table"
+      ],
       "quick_start": {
         "command": "python3 scripts/render_report.py input.json output.pdf",
         "expected": "Report written to output.pdf"
       },
       "inputs": {
-        "inputs": ["input.json", "report template"],
-        "outputs": ["output.pdf"],
+        "inputs": [
+          "input.json",
+          "report template"
+        ],
+        "outputs": [
+          "output.pdf"
+        ],
         "preconditions": "templates present"
       },
       "scripts": [
@@ -181,10 +251,17 @@
         }
       ],
       "examples": [
-        {"name": "Render report", "command": "python3 scripts/render_report.py input.json report.pdf", "output": "Report written to report.pdf"}
+        {
+          "name": "Render report",
+          "command": "python3 scripts/render_report.py input.json report.pdf",
+          "output": "Report written to report.pdf"
+        }
       ],
       "references": [
-        {"file": "references/templates.md", "when": "template selection or layout rules needed"}
+        {
+          "file": "references/templates.md",
+          "when": "template selection or layout rules needed"
+        }
       ]
     }
   ],

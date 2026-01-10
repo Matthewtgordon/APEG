@@ -2,10 +2,15 @@
 # Command registry (treat each command as an API endpoint)
 
 {{RUNBOOK_METADATA_SECTION}}
+
+## VENV PREFERENCE
+If `.venv/` exists, prefer `.venv/bin/python -m ...` for Python commands to ensure correct dependencies.
+
 {{COMMAND_REGISTRY_SECTION}}
 {{COMMAND_ARGS_SECTION}}
 {{TEST_TIERS_SECTION}}
 {{ENVIRONMENT_MODES_SECTION}}
+{{INTEGRATION_CHECKS_SECTION}}
 {{PHASE_SCRIPTS_SECTION}}
 {{TROUBLESHOOTING_SECTION}}
 {{SERVICES_SECTION}}

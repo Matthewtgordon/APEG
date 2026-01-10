@@ -366,6 +366,25 @@ def build_runbook_mapping(spec):
         make_table(["Mode", "Condition", "Behavior"], env_rows),
     )
 
+integration_checks = runbook.get("integration_checks", [])
+integration_checks_section = ""
+if integration_checks:
+    rows = []
+    for item in integration_checks:
+        rows.append(
+            [
+                format_cell(item.get("id", "-")),
+                format_cell(item.get("purpose", "-")),
+                format_cell(item.get("command", "-"), code=True),
+                format_cell(item.get("expected", "-")),
+                format_cell(item.get("evidence", "-")),
+            ]
+        )
+    integration_checks_section = section(
+        "INTEGRATION CHECKS",
+        make_table(["ID", "Purpose", "Command", "Expected", "Evidence"], rows),
+    )
+
     phase_scripts = runbook.get("phase_scripts", [])
     phase_scripts_section = ""
     if phase_scripts:
@@ -460,6 +479,7 @@ def build_runbook_mapping(spec):
         "COMMAND_ARGS_SECTION": command_args_section,
         "TEST_TIERS_SECTION": test_tiers_section,
         "ENVIRONMENT_MODES_SECTION": environment_modes_section,
+        "INTEGRATION_CHECKS_SECTION": integration_checks_section,
         "PHASE_SCRIPTS_SECTION": phase_scripts_section,
         "TROUBLESHOOTING_SECTION": troubleshooting_section,
         "SERVICES_SECTION": services_section,

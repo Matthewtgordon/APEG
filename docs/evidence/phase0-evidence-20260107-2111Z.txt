@@ -1,0 +1,4 @@
+Phase 0 evidence run: 2026-01-07 21:11Z
+AT-P0-SHOPIFY-01: PASS - shop.name=My Store
+AT-P0-META-01: PASS - valid scopes=pages_show_list,ads_management,ads_read,business_management,pages_read_engagement,public_profile
+AT-P0-N8N-01: FAIL - HTTP 401 from credentials endpoint

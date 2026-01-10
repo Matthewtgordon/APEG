@@ -10,6 +10,7 @@ import os
 import sys
 import urllib.parse
 import urllib.request
+from urllib.error import HTTPError, URLError
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -50,9 +51,27 @@ def http_json(url: str, method: str = "GET", headers: dict | None = None, body: 
     req.add_header("Accept", "application/json")
     if body is not None:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        raw = resp.read().decode("utf-8")
-        return resp.status, json.loads(raw)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8")
+            if not raw:
+                return resp.status, {}
+            try:
+                return resp.status, json.loads(raw)
+            except json.JSONDecodeError:
+                return resp.status, {"raw": raw}
+    except HTTPError as exc:
+        raw = exc.read().decode("utf-8") if hasattr(exc, "read") else ""
+        if raw:
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                payload = {"raw": raw}
+        else:
+            payload = {}
+        return exc.code, payload
+    except URLError as exc:
+        return 0, {"error": f"{exc}"}
 
 
 def shopify_auth(dotenv: dict) -> tuple[str, str]:
@@ -84,12 +103,31 @@ def meta_token_debug(dotenv: dict) -> tuple[str, str]:
     app_secret = get_env(dotenv, "META_APP_SECRET")
     if not (access_token and app_id and app_secret):
         return "SKIPPED", "Missing META_ACCESS_TOKEN or META_APP_ID or META_APP_SECRET"
-    app_token = f"{app_id}|{app_secret}"
-    query = urllib.parse.urlencode({"input_token": access_token, "access_token": app_token})
-    url = f"https://graph.facebook.com/debug_token?{query}"
-    status, payload = http_json(url)
+
+    def debug_with(token: str) -> tuple[int, dict]:
+        query = urllib.parse.urlencode({"input_token": access_token, "access_token": token})
+        url = f"https://graph.facebook.com/debug_token?{query}"
+        return http_json(url)
+
+    # Prefer user token as access_token; fall back to app token
+    status, payload = debug_with(access_token)
     if status != 200:
-        return "FAIL", f"HTTP {status}"
+        app_token = f"{app_id}|{app_secret}"
+        status, payload = debug_with(app_token)
+
+    if status != 200:
+        error_detail = ""
+        if isinstance(payload, dict):
+            error = payload.get("error")
+            if isinstance(error, dict):
+                error_detail = error.get("message") or error.get("type") or str(error)
+            elif error:
+                error_detail = str(error)
+        detail = f"HTTP {status}"
+        if error_detail:
+            detail = f"{detail} - {error_detail}"
+        return "FAIL", detail
+
     data = payload.get("data", {})
     if not data.get("is_valid"):
         return "FAIL", "Token invalid"
@@ -103,20 +141,34 @@ def n8n_credentials(dotenv: dict) -> tuple[str, str]:
     api_key = get_env(dotenv, "N8N_API_KEY")
     if not (base_url and api_key):
         return "SKIPPED", "Missing N8N_BASE_URL or N8N_API_KEY"
-    url = f"{base_url}/api/v1/credentials"
-    try:
-        status, payload = http_json(url, headers={"X-N8N-API-KEY": api_key})
-    except Exception as exc:  # noqa: BLE001
-        return "FAIL", f"Request failed: {exc}"
-    if status != 200:
-        return "FAIL", f"HTTP {status}"
-    items = payload.get("data", payload)
-    if not isinstance(items, list):
-        return "FAIL", "Unexpected response shape"
-    ids = [str(item.get("id")) for item in items if item.get("id") is not None]
-    if not ids:
-        return "FAIL", "No credential IDs returned"
-    return "PASS", f"credential_ids={','.join(ids)}"
+    paths = ["/api/v1/credentials", "/rest/credentials"]
+    headers = [
+        ("X-N8N-API-KEY", api_key),
+        ("Authorization", f"Bearer {api_key}"),
+    ]
+    last_status = None
+    for path in paths:
+        url = f"{base_url}{path}"
+        for header, value in headers:
+            status, payload = http_json(url, headers={header: value})
+            last_status = status
+            if status == 200:
+                items = payload.get("data", payload)
+                if not isinstance(items, list):
+                    return "FAIL", f"Unexpected response shape from {path}"
+                ids = [str(item.get("id")) for item in items if item.get("id") is not None]
+                if not ids:
+                    return "FAIL", f"No credential IDs returned from {path}"
+                return "PASS", f"credential_ids={','.join(ids)}"
+            if status in (401, 404, 405):
+                continue
+            if status == 0:
+                error_detail = ""
+                if isinstance(payload, dict):
+                    error_detail = payload.get("error", "")
+                return "FAIL", f"Request failed: {error_detail or 'network error'}"
+            return "FAIL", f"HTTP {status} from {path}"
+    return "FAIL", f"HTTP {last_status} from credentials endpoint"
 
 
 def update_acceptance(table_lines: list[str], updates: dict[str, tuple[str, str, str]]) -> list[str]:

@@ -20,12 +20,14 @@ This file overrides all other instructions. If anything conflicts, stop and ask.
 
 ### 1. PREFLIGHT (non-skippable)
 Run preflight checks and log results to `.agent/logs/preflight.jsonl`.
+If `.venv/` exists, prefer `.venv/bin/python -m ...` for Python commands.
 
 ### 2. SCOPE
 Update `.agent/CONTEXT.md` with Goal, Non-goals, Risk level, and Test plan.
 
 ### 3. EXECUTE
 Make one change at a time. Use commands only from `docs/RUNBOOK.md`.
+If `.venv/` exists, use `.venv/bin/python` for tests and scripts.
 
 ### 4. VERIFY
 Run the declared test tier. Classify failures via ENV-DRIFT.
@@ -44,6 +46,7 @@ If the same error appears twice, stop and escalate.
 - Interpreter: `python -c "import sys; print(sys.executable)"`
 - Python version: `python -c "import sys; print(sys.version.split()[0])"`
 - Venv active (if Python): `python -c "import sys; print(sys.prefix != sys.base_prefix)"`
+- If `.venv/` exists, use `.venv/bin/python` for tests and scripts.
 - `.env` exists: `python -c "from pathlib import Path; print(Path('.env').exists())"`
 - Git status: `python -c "import subprocess; subprocess.run(['git','status','--short'])"`
 
@@ -65,6 +68,7 @@ Diagnostics:
 
 Rules:
 - If venv exists but inactive: ask user to activate.
+- If `.venv/` exists, use `.venv/bin/python -m pip` for installs.
 - If package missing and not in manifest: ask user.
 - If manifest exists and Autonomy Mode FULL: install once with the correct tool; otherwise ask.
 
